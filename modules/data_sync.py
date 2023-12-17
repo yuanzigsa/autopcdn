@@ -5,9 +5,10 @@ import time
 import requests
 import datetime
 import subprocess
-from modules.logger import logging
 from datetime import datetime
+from modules.logger import logging
 from modules.pppoe_init import pppoe_dial_up
+
 
 # Time : 2023/12/08
 # Author : yuan_zi
@@ -28,6 +29,9 @@ update_pppline_monitor_info_api_url = config_info["update_pppline_monitor_info_a
 question_headers = config_info["question_headers"]
 
 info_path = "info"
+if not os.path.exists(info_path):
+    os.makedirs(info_path)
+# 读取机器的唯一标识
 machineTag = open(os.path.join(info_path, 'machineTag.info'), 'r').read().replace('\n', '')
 
 
@@ -198,7 +202,7 @@ def check_for_reconnection_and_update_to_crontrol_node():
                 os.remove(f"{pppoe_ifname}_discon.flag")
 
 
-# 节点具体信息上报到控制节点 或者客户-主函数
+# 节点具体信息上报到控制节点
 def collect_node_spacific_info_update_to_control_node_or_customers():
     def create_local_pppline_empty_dict(pppoe_basicinfo):
         pppline = pppoe_basicinfo['pppline']

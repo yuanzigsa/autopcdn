@@ -11,6 +11,11 @@ from modules.logger import logging
 # Time : 2023/12/08
 # Author : yuan_zi
 
+"""
+PPoE拨号初始化环境
+"""
+
+
 def install_pppoe_runtime_environment():
     def check_configure_dns():
         logging.info("开始检测和配置DNS...")
@@ -62,12 +67,33 @@ def install_pppoe_runtime_environment():
             f"agentAddress udp:{port}",
         ]
         file_path = "/etc/snmp/snmpd.conf"
+
         # 读取现有内容
         with open(file_path, "r") as snmpd_conf:
-            existing_content = snmpd_conf.read()
+            existing_content = snmpd_conf.read().splitlines()
+
+        # 创建一个新的列表来存储需要保留的行
+        new_content = []
+        flag_1 = "rocommunity"
+        flag_2 = "agentAddress"
+
+        for line in existing_content:
+            if flag_1 in line:
+                continue
+            if flag_2 in line:
+                continue
+
+            # 将未匹配到 flag_1 和 flag_2 的行添加到新的内容中
+            new_content.append(line)
+
+        # 在 new_content 列表的最前面插入新的配置行
+        new_content.insert(0, config_lines[1])
+        new_content.insert(0, config_lines[0])
+
         # 将配置写入文件，加在现有内容之前
         with open(file_path, "w") as snmpd_conf:
-            snmpd_conf.write("\n".join(config_lines) + "\n" + existing_content)
+            snmpd_conf.write("\n".join(new_content) + "\n")
+
         # 重启SNMP服务
         try:
             cmd1 = "sudo systemctl restart snmpd"
@@ -91,6 +117,7 @@ def install_pppoe_runtime_environment():
     add_8021q_to_modules_file()
     configure_snmpd_conf_and_start_the_service()
 
+
 def write_secrets_to_pppoe_config_file(account, secret):
     secrets_content = f'"{account}"        *       "{secret}"\n'
     paths = ["/etc/ppp/chap-secrets", "/etc/ppp/pap-secrets"]
@@ -102,6 +129,9 @@ def write_secrets_to_pppoe_config_file(account, secret):
     except Exception as e:
         logging.info(f"向/etc/ppp/chap-secret和/etc/ppp/pap-secrets写入拨号账户密码信息时发生错误：{e}")
         sys.exit(1)
+
+
+# 创建配置文件，带vlan的不带vlan 后面还要加入专线的
 def create_ifconfig_file(file_type, ifname, vlanid=None, pppoe_user=None, macaddr=None, pppoe_number=None):
     if file_type == "ifname-vlan":
         ifconfig_content = f"TYPE=vlan\nPROXY_METHOD=none\nBROWSER_ONLY=no\nBOOTPROTO=static\nDEFROUTE=yes\nIPV4_FAILURE_FATAL=no\nIPV6INIT=yes\nIPV6_AUTOCONF=yes\nIPV6_DEFROUTE=yes\nIPV6_FAILURE_FATAL=no\nIPV6_ADDR_GEN_MODE=stable-privacy\nNAME={ifname}.{vlanid}\nDEVICE={ifname}.{vlanid}\nVLAN_ID={vlanid}\nVLAN=yes\nONBOOT=yes\nMACADDR={macaddr}\n"
@@ -123,6 +153,9 @@ def create_ifconfig_file(file_type, ifname, vlanid=None, pppoe_user=None, macadd
     except Exception as e:
         logging.error(f"{ifname}的{file_type}接口配置文件创建失败，错误信息：{e}")
         sys.exit(1)
+
+
+# 创建路由表
 def create_routing_tables(table_number, pppoe_ifname):
     rt_tables_file = "/etc/iproute2/rt_tables"
     # 获取当前路由表优先级编号，用于后续编号去重
@@ -154,6 +187,8 @@ def create_routing_tables(table_number, pppoe_ifname):
     table_number += 1
     return table_number
 
+
+# 创建pppoe拨号前的配置文件以及创建路由表
 def create_pppoe_connection_file_and_routing_tables(ppp_line):
     # 获取本机的所有mac地址列表
     def get_local_mac_address_list():
@@ -226,6 +261,8 @@ def create_pppoe_connection_file_and_routing_tables(ppp_line):
             logging.info(f"Vlan子接口{dial_up_ifnmme}.{pppoe_vlan}已启用")
     return ppp_line
 
+
+# 拨号
 def pppoe_dial_up(pppoe_ifname, pppoe_user):
     try:
         logging.info(f"{pppoe_ifname}({pppoe_user}) 开始拨号...")

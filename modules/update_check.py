@@ -1,13 +1,14 @@
 import os
 import json
+import modules.data_sync as sync
+import modules.pppoe_init as init
 from modules.logger import logging
-import modules.pppoe_init
-from modules.data_sync import info_path, get_pppoe_basicinfo_from_control_node
+
 
 # Time : 2023/12/08
 # Author : yuan_zi
 
-# 检查控制平台是否存在拨号信息的更新-主函数
+# 检查控制平台是否存在拨号信息的更新
 def check_for_updates_and_config():
     def check_updates(pppline_local, pppline_control_node):
         if pppline_local != pppline_control_node:
@@ -27,14 +28,13 @@ def check_for_updates_and_config():
             return None, None, None
 
     # 获取当前云平台最新数据
-    pppline_control_node = get_pppoe_basicinfo_from_control_node()["pppline"]
+    pppline_control_node = sync.get_pppoe_basicinfo_from_control_node()["pppline"]
     # 获取本地存储的上次拨号成功的数据
-    pppline_path = os.path.join(info_path, 'pppline.json')
+    pppline_path = os.path.join('info', 'pppline.json')
     with open(pppline_path, 'r', encoding='utf-8') as file:
         pppline_local = json.load(file)
     # 获取差异数据
-    keys_only_in_control_node, keys_only_in_local, same_keys_but_different_values = check_updates(pppline_local,
-                                                                                                  pppline_control_node)
+    keys_only_in_control_node, keys_only_in_local, same_keys_but_different_values = check_updates(pppline_local, pppline_control_node)
     # 1. 云平台有本地没有
     if keys_only_in_control_node:
         # 创建更新拨号信息列表
@@ -46,7 +46,7 @@ def check_for_updates_and_config():
             dial_up_ifname = pppline_control_node[ifname]['eth']
             logging.info(f"检测到云平台账号新增，配置接口名：ifcfg-{ifname} 物理接口：{dial_up_ifname} 账号：{pppoe_user}")
         # 创建新增项的拨号前配置
-        modules.pppoe_dial_up_initialization.create_pppoe_connection_file_and_routing_tables(add_pppoe_list)
+        init.create_pppoe_connection_file_and_routing_tables(add_pppoe_list)
         logging.info("所有新增拨号账号已建立拨号前的配置文件并写入密码信息")
 
     # 2. 本地有云平台没有
@@ -67,7 +67,7 @@ def check_for_updates_and_config():
             pppoe_user = pppline_control_node[ifname]['user']
             logging.info(
                 f"检测到云平台账号信息变动，配置接口名：ifcfg-{ifname} 原账号：{old_pppoe_user} 新账号：{pppoe_user}")
-        modules.pppoe_dial_up_initialization.create_pppoe_connection_file_and_routing_tables(modify_pppoe_list)
+        init.create_pppoe_connection_file_and_routing_tables(modify_pppoe_list)
         logging.info("所有变更拨号账号已建立拨号前的配置文件并写入密码信息")
         # 写入此次拨号信息到硬盘，方便后续从云控制平台拉去信息与其对比，判断是否有更新
         with open(pppline_path, 'w', encoding='utf-8') as file:
