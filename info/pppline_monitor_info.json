@@ -1,0 +1,34 @@
+{
+  "ppp0": {
+    "online_ifname": "ppp0",
+    "pppoe_user": 202301,
+    "current_max_upbw_mbps": 0.0,
+    "current_max_downbw_mbps": 0.0,
+    "pingloss": 0,
+    "rtt": 27.676
+  },
+  "ppp1": {
+    "online_ifname": "ppp1",
+    "pppoe_user": 202302,
+    "current_max_upbw_mbps": 0.0,
+    "current_max_downbw_mbps": 0.0,
+    "pingloss": 0,
+    "rtt": 26.839
+  },
+  "ppp2": {
+    "online_ifname": "ppp2",
+    "pppoe_user": 202303,
+    "current_max_upbw_mbps": 0.0,
+    "current_max_downbw_mbps": 0.0,
+    "pingloss": 0,
+    "rtt": 27.872
+  },
+  "ppp3": {
+    "online_ifname": "ppp3",
+    "pppoe_user": 202304,
+    "current_max_upbw_mbps": 0.0,
+    "current_max_downbw_mbps": 0.0,
+    "pingloss": 0,
+    "rtt": 29.086
+  }
+}
