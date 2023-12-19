@@ -182,19 +182,18 @@ if __name__ == "__main__":
         logging.info("检测到系统已存在pppoe拨号文件，后续会从服务器更新验证这些文件是否是最新的")
 
     # 初始化后启动线程持续运行其他后续工作线程
-
     threading.Thread(target=report_node_info_to_control_node_and_customer).start()
-    logging.info("====================节点信息更新上报线程：已启动====================")
+    logging.info("====================节点信息更新上报线程：已启动！====================")
 
     threading.Thread(target=monitor_dial_connect_and_update).start()
-    logging.info("====================断线重拨上报监控线程：已启动====================")
+    logging.info("====================断线重拨上报监控线程：已启动！====================")
 
     threading.Thread(target=check_for_control_node_updates).start()
-    logging.info("====================节点信息更新检查线程：已启动====================")
+    logging.info("====================节点信息更新检查线程：已启动！====================")
 
     threading.Thread(target=keep_pppoe_ip_routing_tables_available).start()
-    logging.info("====================动态策略路由维护线程：已启动====================")
+    logging.info("====================动态策略路由维护线程：已启动！====================")
 
     threading.Thread(target=traffic_speed_collection_and_write_to_file).start()
-    logging.info("====================网络监控数据采集上报线程：已启动================\n【程序实时日志】")
+    logging.info("====================网络监控数据采集线程：已启动！====================\n【程序实时日志】")
 
