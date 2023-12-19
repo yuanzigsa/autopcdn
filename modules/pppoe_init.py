@@ -230,7 +230,7 @@ def create_pppoe_connection_file_and_routing_tables(ppp_line):
     # 创建本机的mac地址表用于后续进行比对
     original_mac_address_list = get_local_mac_address_list()
     # 定义初始mac
-    mac_address = "00:00:00:00:00:00"
+    mac_address = "00:00:00:00:00:01"
     # 遍历平台提供的信息并开始写入配置文件
     for pppoe_ifname in ppp_line.keys():
         pppoe_user = ppp_line[pppoe_ifname]['user']
@@ -253,7 +253,6 @@ def create_pppoe_connection_file_and_routing_tables(ppp_line):
             create_ifconfig_file('pppoe-vlan', ifname=dial_up_ifnmme, vlanid=pppoe_vlan, pppoe_user=pppoe_user,
                                  macaddr=mac_address, pppoe_number=pppoe_ifname)
             table_number = create_routing_tables(table_number, pppoe_ifname)
-            table_number += 1  # 路由表序号+1
             mac_address = derivation_mac_address(mac_address)  # mac地址后2位尾数按照16进制+1
             # 开启Vlan子接口
             cmd = f"ifup {dial_up_ifnmme}.{pppoe_vlan}"

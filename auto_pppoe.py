@@ -186,7 +186,7 @@ if __name__ == "__main__":
     logging.info("====================节点信息更新上报线程：已启动！====================")
 
     threading.Thread(target=monitor_dial_connect_and_update).start()
-    logging.info("====================断线重拨上报监控线程：已启动！====================")
+    logging.info("====================断线重拨监控上报线程：已启动！====================")
 
     threading.Thread(target=check_for_control_node_updates).start()
     logging.info("====================节点信息更新检查线程：已启动！====================")
