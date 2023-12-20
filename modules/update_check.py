@@ -1,7 +1,7 @@
 import os
 import json
 import modules.data_sync as sync
-import modules.pppoe_init as init
+import modules.init as init
 from modules.logger import logging
 
 

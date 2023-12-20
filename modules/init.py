@@ -132,7 +132,7 @@ def write_secrets_to_pppoe_config_file(account, secret):
 
 
 # 创建配置文件，带vlan的不带vlan 后面还要加入专线的
-def create_ifconfig_file(file_type, ifname, vlanid=None, pppoe_user=None, macaddr=None, pppoe_number=None):
+def create_ifconfig_file(file_type, ifname, vlanid=None, ip=None, pppoe_user=None, macaddr=None, pppoe_number=None):
     if file_type == "ifname-vlan":
         ifconfig_content = f"TYPE=vlan\nPROXY_METHOD=none\nBROWSER_ONLY=no\nBOOTPROTO=static\nDEFROUTE=yes\nIPV4_FAILURE_FATAL=no\nIPV6INIT=yes\nIPV6_AUTOCONF=yes\nIPV6_DEFROUTE=yes\nIPV6_FAILURE_FATAL=no\nIPV6_ADDR_GEN_MODE=stable-privacy\nNAME={ifname}.{vlanid}\nDEVICE={ifname}.{vlanid}\nVLAN_ID={vlanid}\nVLAN=yes\nONBOOT=yes\nMACADDR={macaddr}\n"
         file_path = f'/etc/sysconfig/network-scripts/ifcfg-{ifname}.{vlanid}'
@@ -145,6 +145,9 @@ def create_ifconfig_file(file_type, ifname, vlanid=None, pppoe_user=None, macadd
     elif file_type == "pppoe-no-vlan":
         ifconfig_content = f"USERCTL=yes\nBOOTPROTO=dialup\nNAME=DSL{pppoe_number}\nDEVICE={pppoe_number}\nTYPE=xDSL\nONBOOT=yes\nPIDFILE=/var/run/pppoe-ads{pppoe_number}.pid\nFIREWALL=NONE\nPING=.\nPPPOE_TIMEOUT=80\nLCP_FAILURE=3\nLCP_INTERVAL=20\nCLAMPMSS=1412\nCONNECT_POLL=6\nCONNECT_TIMEOUT=60\nDEFROUTE=no\nSYNCHRONOUS=no\nETH={ifname}\nPROVIDER=DSL{pppoe_number}\nUSER={pppoe_user}\nPEERDNS=no\nDEMAND=no\n"
         file_path = f'/etc/sysconfig/network-scripts/ifcfg-{pppoe_number}'
+    elif file_type == "static-ip":
+        ifconfig_content = f"TYPE=vlan\nPROXY_METHOD=none\nBROWSER_ONLY=no\nBOOTPROTO=static\nDEFROUTE=yes\nIPV4_FAILURE_FATAL=no\nIPV6INIT=yes\nIPV6_AUTOCONF=yes\nIPV6_DEFROUTE=yes\nIPV6_FAILURE_FATAL=no\nIPV6_ADDR_GEN_MODE=stable-privacy\nNAME={ifname}.{vlanid}\nDEVICE={ifname}.{vlanid}\nVLAN_ID={vlanid}\nVLAN=yes\nONBOOT=yes\nMACADDR={macaddr}\n"
+        file_path = f'/etc/sysconfig/network-scripts/ifcfg-{ifname}.{vlanid}'
     try:
         if file_path is not None:
             with open(file_path, 'w') as file:
@@ -216,16 +219,6 @@ def create_pppoe_connection_file_and_routing_tables(ppp_line):
         return new_mac_address
 
     # 开始拨号前的配置
-    # pppoe_basicinfo = get_pppoe_basicinfo_from_control_node()
-    # logging.info("从控制节点获取配置信息成功")
-    # ppp_line = pppoe_basicinfo['pppline']
-    # 检查平台提供的拨号信息是否完整
-    counts = 0
-    for ifname in ppp_line.keys():
-        if ppp_line[ifname]['user'] is None or ppp_line[ifname]['pass'] is None:
-            counts += 1
-            # if counts < len(ppp_line):
-    #     logging.error("部分拨号网卡用户名或密码信息为空，请检查控制平台信息填写是否完整")
     table_number = 50
     # 创建本机的mac地址表用于后续进行比对
     original_mac_address_list = get_local_mac_address_list()

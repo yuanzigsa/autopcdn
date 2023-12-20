@@ -4,7 +4,7 @@ import time
 import threading
 from datetime import datetime
 import modules.data_sync as sync
-import modules.pppoe_init as init
+import modules.init as init
 from modules.logger import logging
 import modules.route_keeper as route
 import modules.update_check as update
@@ -43,10 +43,10 @@ def set_run_flag(set_type):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if set_type == "init":
         with open('info/init.flag', "w") as file:
-            file.write(f"这台机器已经于{current_time}部署了拨号环境")
+            file.write(f"这台机器已经于{current_time}部署了拨号环境\n")
     if set_type == "pppoe":
         with open('info/pppoe.flag', "w") as file:
-            file.write(f"这台已经于{current_time}创建了拨号配置文件")
+            file.write(f"这台已经于{current_time}创建了拨号配置文件\n")
 
 
 # 检查标记
@@ -102,7 +102,7 @@ def report_node_info_to_control_node_and_customer():
         # 计算实际执行时间
         execution_time = time.time() - start_time
         # 确保推送间隔
-        next_interval = min(def_interval, def_interval - execution_time)
+        next_interval = max(def_interval - execution_time, 1)
         time.sleep(next_interval)
 
 
@@ -117,7 +117,7 @@ def traffic_speed_collection_and_write_to_file():
         # 计算实际执行时间
         execution_time = time.time() - start_time
         # 确保推送间隔
-        next_interval = min(def_interval, def_interval - execution_time)
+        next_interval = max(def_interval - execution_time, 1)
         time.sleep(next_interval)
 
 
@@ -129,15 +129,6 @@ def check_for_control_node_updates():
 
 
 if __name__ == "__main__":
-    # 一次性执行
-    # 1. 初始化环境部署搭建
-    # 2. 创建拨号配置文件并执行拨号
-    # 创建四个线程持续执行
-    # 1. 重拨信息上报5-10s
-    # 2. 流量采集汇报
-    # 3. 自动维护路由
-    # 4. 监测控制台是否有账号更新
-
     # 是否进行初始化
     logging.info(logo)
     if not check_run_flag("init"):
@@ -196,4 +187,5 @@ if __name__ == "__main__":
 
     threading.Thread(target=traffic_speed_collection_and_write_to_file).start()
     logging.info("====================网络监控数据采集线程：已启动！====================\n【程序实时日志】")
+
 

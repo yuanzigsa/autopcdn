@@ -7,7 +7,7 @@ import datetime
 import subprocess
 from datetime import datetime
 from modules.logger import logging
-from modules.pppoe_init import pppoe_dial_up
+from modules.init import pppoe_dial_up
 
 
 # Time : 2023/12/08
@@ -176,17 +176,16 @@ def check_for_reconnection_and_update_to_crontrol_node():
             pppoe_user = pppline[pppoe_ifname]['user']
             if check_update_discon_flag(pppoe_ifname) is False:
                 update_dial_connect_to_control_node(type, node_name, pppoe_ifname)
-                logging.info(f"{pppoe_ifname}({pppoe_user}) 拨号网卡断线，已经上报控制节点")
-                # 检测pppoe-connect进程是否存在，避免一号多拨
-                if check_pppoe_connect_process_exists(pppoe_ifname) is False:
-                    logging.info(
-                        f"检测到{pppoe_ifname}({pppoe_user})的pppoe-connect驻守进程已经不存在，即将重新进行拨号...")
-                    pppoe_dial_up(pppoe_ifname, pppoe_user)
                 set_update_discon_flag(pppoe_ifname)
+                logging.info(f"{pppoe_ifname}({pppoe_user}) 检测到拨号网卡断线，已经上报控制节点")
+            # 检测pppoe-connect进程是否存在，避免一号多拨
+            if check_pppoe_connect_process_exists(pppoe_ifname) is False:
+                logging.info(f"检测到{pppoe_ifname}({pppoe_user})的pppoe-connect驻守进程已经不存在，即将重新进行拨号...")
+                pppoe_dial_up(pppoe_ifname, pppoe_user)
         else:
             type = 40
             if check_update_discon_flag(pppoe_ifname):
-                logging.info(f"{pppoe_ifname} 拨号网卡重拨成功，已经上报控制节点")
+                logging.info(f"{pppoe_ifname} 检测到拨号网卡已经重连，已经上报控制节点")
                 if pppoe_ifname not in retry_counts.keys():
                     retry_counts[pppoe_ifname] = 1
                 if retry_counts[pppoe_ifname] is None:
@@ -199,7 +198,7 @@ def check_for_reconnection_and_update_to_crontrol_node():
                 with open(retry_counts_path, 'w', encoding='utf-8') as file:
                     json.dump(retry_counts, file, ensure_ascii=False, indent=2)
                 update_dial_connect_to_control_node(type, node_name, pppoe_ifname)
-                os.remove(f"{pppoe_ifname}_discon.flag")
+                os.remove(f"info/{pppoe_ifname}_discon.flag")
 
 
 # 节点具体信息上报到控制节点

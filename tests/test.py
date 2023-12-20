@@ -1,22 +1,4 @@
-import os
-import json
 
 
-def read_from_json_file(file):
-    path = os.path.join("info", file)
-    with open(path, 'r', encoding='utf-8') as file:
-        value = json.load(file)
-    return value
 
-value = read_from_json_file('pppline_monitor_info.json')
-
-for ifname in value.keys():
-    value[ifname]['status'] = 0
-    value[ifname]['current_max_upbw_mbps'] = round(0 * 8 / 1000, 2)
-
-print(value)
-
-
-path = os.path.join("info", 'pppline_monitor_info.json')
-with open(path, 'w', encoding='utf-8') as file:
-    json.dump(value, file, ensure_ascii=False, indent=2)
+ifconfig_content = f"TYPE=vlan\nPROXY_METHOD=none\nBROWSER_ONLY=no\nBOOTPROTO=static\nDEFROUTE=yes\nIPV4_FAILURE_FATAL=no\nIPV6INIT=yes\nIPV6_AUTOCONF=yes\nIPV6_DEFROUTE=yes\nIPV6_FAILURE_FATAL=no\nIPV6_ADDR_GEN_MODE=stable-privacy\nNAME={ifname}.{vlanid}\nDEVICE={ifname}.{vlanid}\nVLAN_ID={vlanid}\nVLAN=yes\nONBOOT=yes\nMACADDR={macaddr}\n"
