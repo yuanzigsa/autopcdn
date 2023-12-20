@@ -42,19 +42,19 @@ success = """初始化部署完成！\n
 def set_run_flag(set_type):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if set_type == "init":
-        with open('info/init.flag', "w") as file:
+        with open('info/env_init.flag', "w") as file:
             file.write(f"这台机器已经于{current_time}部署了拨号环境\n")
     if set_type == "pppoe":
-        with open('info/pppoe.flag', "w") as file:
+        with open('info/net_conf.flag', "w") as file:
             file.write(f"这台已经于{current_time}创建了拨号配置文件\n")
 
 
 # 检查标记
 def check_run_flag(check_type):
-    if check_type == "init":
-        return os.path.exists('info/init.flag')
-    if check_type == "pppoe":
-        return os.path.exists('info/pppoe.flag')
+    if check_type == "env_init":
+        return os.path.exists('info/env_init.flag')
+    if check_type == "net_conf":
+        return os.path.exists('info/net_conf.flag')
 
 
 # 路由表维护-线程
@@ -131,23 +131,22 @@ def check_for_control_node_updates():
 if __name__ == "__main__":
     # 是否进行初始化
     logging.info(logo)
-    if not check_run_flag("init"):
+    if not check_run_flag("env_init"):
         logging.info("====================初始化环境部署====================")
         init.install_pppoe_runtime_environment()
-        set_run_flag("init")
+        set_run_flag("env_init")
     else:
         logging.info("检测到系统已具备PPPoE拨号业务环境")
 
     # 检查是否已经创建过拨号文件
-    if not check_run_flag("pppoe"):
-        # 开始拨号前的配置
-
+    if not check_run_flag("net_conf"):
+        # 开始拨号前的配置  # 需要新增专线的配置
         pppoe_basicinfo = sync.get_pppoe_basicinfo_from_control_node()
         ppp_line = pppoe_basicinfo['pppline']
         logging.info("从控制节点获取配置信息成功")
         logging.info("====================创建拨号配置文件===================")
         pppline = init.create_pppoe_connection_file_and_routing_tables(ppp_line)
-        set_run_flag("pppoe")
+        set_run_flag("net_conf")
         # 开始拨号
         logging.info("====================开始拨号...=======================")
         for ifname in pppline.keys():

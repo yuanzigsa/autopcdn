@@ -145,9 +145,6 @@ def create_ifconfig_file(file_type, ifname, vlanid=None, ip=None, pppoe_user=Non
     elif file_type == "pppoe-no-vlan":
         ifconfig_content = f"USERCTL=yes\nBOOTPROTO=dialup\nNAME=DSL{pppoe_number}\nDEVICE={pppoe_number}\nTYPE=xDSL\nONBOOT=yes\nPIDFILE=/var/run/pppoe-ads{pppoe_number}.pid\nFIREWALL=NONE\nPING=.\nPPPOE_TIMEOUT=80\nLCP_FAILURE=3\nLCP_INTERVAL=20\nCLAMPMSS=1412\nCONNECT_POLL=6\nCONNECT_TIMEOUT=60\nDEFROUTE=no\nSYNCHRONOUS=no\nETH={ifname}\nPROVIDER=DSL{pppoe_number}\nUSER={pppoe_user}\nPEERDNS=no\nDEMAND=no\n"
         file_path = f'/etc/sysconfig/network-scripts/ifcfg-{pppoe_number}'
-    elif file_type == "static-ip":
-        ifconfig_content = f"TYPE=vlan\nPROXY_METHOD=none\nBROWSER_ONLY=no\nBOOTPROTO=static\nDEFROUTE=yes\nIPV4_FAILURE_FATAL=no\nIPV6INIT=yes\nIPV6_AUTOCONF=yes\nIPV6_DEFROUTE=yes\nIPV6_FAILURE_FATAL=no\nIPV6_ADDR_GEN_MODE=stable-privacy\nNAME={ifname}.{vlanid}\nDEVICE={ifname}.{vlanid}\nVLAN_ID={vlanid}\nVLAN=yes\nONBOOT=yes\nMACADDR={macaddr}\n"
-        file_path = f'/etc/sysconfig/network-scripts/ifcfg-{ifname}.{vlanid}'
     try:
         if file_path is not None:
             with open(file_path, 'w') as file:
@@ -191,39 +188,40 @@ def create_routing_tables(table_number, pppoe_ifname):
     return table_number
 
 
+# 获取本机的所有mac地址列表
+def get_local_mac_address_list():
+    mac_addresses = []
+    for interface in socket.if_nameindex():
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            mac_address = fcntl.ioctl(sock.fileno(), 0x8927, struct.pack('256s', interface[1][:15].encode('utf-8')))
+            mac_address = ':'.join(['%02x' % b for b in mac_address[18:24]])
+            mac_addresses.append(mac_address)
+        except:
+            pass
+    return mac_addresses
+
+
+# 虚拟网卡的mac地址推导,并验证在本机的唯一性
+def derivation_mac_address(mac_addr, ori_mac_list):
+    last_two_digits = int(mac_addr[-2:], 16)
+    last_two_digits = (last_two_digits + 1) % 256
+    new_last_two_digits = format(last_two_digits, '02x')
+    new_mac_address = mac_addr[:-2] + new_last_two_digits
+    # 与本机所有mac地址比较，如果已存在，再生成新mac检查是否与本机现有mac重复,直到获取唯一的mac
+    while new_mac_address in ori_mac_list:
+        new_mac_address = derivation_mac_address(new_mac_address)
+    return new_mac_address
+
+
 # 创建pppoe拨号前的配置文件以及创建路由表
 def create_pppoe_connection_file_and_routing_tables(ppp_line):
-    # 获取本机的所有mac地址列表
-    def get_local_mac_address_list():
-        mac_addresses = []
-        for interface in socket.if_nameindex():
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                mac_address = fcntl.ioctl(sock.fileno(), 0x8927, struct.pack('256s', interface[1][:15].encode('utf-8')))
-                mac_address = ':'.join(['%02x' % b for b in mac_address[18:24]])
-                mac_addresses.append(mac_address)
-            except:
-                pass
-        return mac_addresses
-
-    # 虚拟网卡的mac地址推导,并验证在本机的唯一性
-    def derivation_mac_address(mac_addr):
-        # 接下来的优化方向：获取
-        last_two_digits = int(mac_addr[-2:], 16)
-        last_two_digits = (last_two_digits + 1) % 256
-        new_last_two_digits = format(last_two_digits, '02x')
-        new_mac_address = mac_address[:-2] + new_last_two_digits
-        # 与本机所有mac地址比较，如果已存在，再生成新mac检查是否与本机现有mac重复,直到获取唯一的mac
-        while new_mac_address in original_mac_address_list:
-            new_mac_address = derivation_mac_address(new_mac_address)
-        return new_mac_address
-
-    # 开始拨号前的配置
+    # 定义初始路由表编号
     table_number = 50
-    # 创建本机的mac地址表用于后续进行比对
-    original_mac_address_list = get_local_mac_address_list()
     # 定义初始mac
     mac_address = "00:00:00:00:00:01"
+    # 创建本机的mac地址表用于后续进行比对
+    original_mac_address_list = get_local_mac_address_list()
     # 遍历平台提供的信息并开始写入配置文件
     for pppoe_ifname in ppp_line.keys():
         pppoe_user = ppp_line[pppoe_ifname]['user']
@@ -234,19 +232,17 @@ def create_pppoe_connection_file_and_routing_tables(ppp_line):
         # 如果接口vlan文件已存在，则不进行创建
         if pppoe_vlan == "0":
             logging.info(f"{pppoe_ifname}没有VLAN")
-            create_ifconfig_file('pppoe-no-vlan', ifname=dial_up_ifnmme, vlanid=pppoe_vlan, pppoe_user=pppoe_user,
-                                 pppoe_number=pppoe_ifname)
+            create_ifconfig_file('pppoe-no-vlan', ifname=dial_up_ifnmme, vlanid=pppoe_vlan, pppoe_user=pppoe_user, pppoe_number=pppoe_ifname)
             # 创建路由表并通过create_routing_tables的返回值得出新的路由表优先级编号
             table_number = create_routing_tables(table_number, pppoe_ifname)
         else:
             logging.info(f"{pppoe_ifname}所属VLAN{pppoe_vlan}")
-
-            create_ifconfig_file('ifname-vlan', ifname=dial_up_ifnmme, vlanid=pppoe_vlan, pppoe_user=pppoe_user,
-                                 macaddr=mac_address, pppoe_number=pppoe_ifname)
-            create_ifconfig_file('pppoe-vlan', ifname=dial_up_ifnmme, vlanid=pppoe_vlan, pppoe_user=pppoe_user,
-                                 macaddr=mac_address, pppoe_number=pppoe_ifname)
+            create_ifconfig_file('ifname-vlan', ifname=dial_up_ifnmme, vlanid=pppoe_vlan, pppoe_user=pppoe_user, macaddr=mac_address, pppoe_number=pppoe_ifname)
+            create_ifconfig_file('pppoe-vlan', ifname=dial_up_ifnmme, vlanid=pppoe_vlan, pppoe_user=pppoe_user, macaddr=mac_address, pppoe_number=pppoe_ifname)
             table_number = create_routing_tables(table_number, pppoe_ifname)
-            mac_address = derivation_mac_address(mac_address)  # mac地址后2位尾数按照16进制+1
+            # 添加这个mac到已存在列表，避免后续mac与之重复
+            original_mac_address_list.append(mac_address)
+            mac_address = derivation_mac_address(mac_address, original_mac_address_list)  # mac地址后2位尾数按照16进制+1
             # 开启Vlan子接口
             cmd = f"ifup {dial_up_ifnmme}.{pppoe_vlan}"
             subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
