@@ -255,8 +255,9 @@ def pppoe_dial_up(pppoe_ifname, pppoe_user):
     try:
         logging.info(f"{pppoe_ifname}({pppoe_user}) 开始拨号...")
         command = f"pppoe-connect /etc/sysconfig/network-scripts/ifcfg-{pppoe_ifname} &"
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True,
-                                   universal_newlines=True)
+        # 创建子进程
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, universal_newlines=True,  preexec_fn=os.setpgrp)
+        # start_new_session分离子进程（避免关闭父进程后子进程随之退出）
         success_flag = "succeeded"
         timeout = time.time() + 10
         while time.time() < timeout:

@@ -8,21 +8,21 @@ import modules.init as init
 from modules.logger import logging
 import modules.route_keeper as route
 import modules.update_check as update
-import modules.network_monitor as monitor
+import modules.monitor as monitor
 
 
 # Time : 2023/12/08
 # Author : yuan_zi
 
 logo = """开始启动Auto_PPPoE脚本程序...\n
-     ██               ██                  ███████  ███████  ███████           ████████                 ██      ████ 
-    ████             ░██                 ░██░░░░██░██░░░░██░██░░░░██         ░██░░░░░                 ███     █░░░██
-   ██░░██   ██   ██ ██████  ██████       ░██   ░██░██   ░██░██   ░██  ██████ ░██             ██    ██░░██    ░█  █░█
-  ██  ░░██ ░██  ░██░░░██░  ██░░░░██      ░███████ ░███████ ░███████  ██░░░░██░███████       ░██   ░██ ░██    ░█ █ ░█
- ██████████░██  ░██  ░██  ░██   ░██      ░██░░░░  ░██░░░░  ░██░░░░  ░██   ░██░██░░░░        ░░██ ░██  ░██    ░██  ░█
-░██░░░░░░██░██  ░██  ░██  ░██   ░██      ░██      ░██      ░██      ░██   ░██░██             ░░████   ░██  ██░█   ░█
-░██     ░██░░██████  ░░██ ░░██████  █████░██      ░██      ░██      ░░██████ ░████████ █████  ░░██    ████░██░ ████ 
-░░      ░░  ░░░░░░    ░░   ░░░░░░  ░░░░░ ░░       ░░       ░░        ░░░░░░  ░░░░░░░░ ░░░░░    ░░    ░░░░ ░░  ░░░░  
+     ██               ██                  ███████    ██████  ███████   ████     ██                 ██      ██ 
+    ████             ░██                 ░██░░░░██  ██░░░░██░██░░░░██ ░██░██   ░██                ███     ███ 
+   ██░░██   ██   ██ ██████  ██████       ░██   ░██ ██    ░░ ░██    ░██░██░░██  ░██       ██    ██░░██    ░░██ 
+  ██  ░░██ ░██  ░██░░░██░  ██░░░░██      ░███████ ░██       ░██    ░██░██ ░░██ ░██      ░██   ░██ ░██     ░██ 
+ ██████████░██  ░██  ░██  ░██   ░██      ░██░░░░  ░██       ░██    ░██░██  ░░██░██      ░░██ ░██  ░██     ░██ 
+░██░░░░░░██░██  ░██  ░██  ░██   ░██      ░██      ░░██    ██░██    ██ ░██   ░░████       ░░████   ░██  ██ ░██ 
+░██     ░██░░██████  ░░██ ░░██████  █████░██       ░░██████ ░███████  ░██    ░░███ █████  ░░██    ████░██ ████
+░░      ░░  ░░░░░░    ░░   ░░░░░░  ░░░░░ ░░         ░░░░░░  ░░░░░░░   ░░      ░░░ ░░░░░    ░░    ░░░░ ░░ ░░░░ 
 """
 
 success = """初始化部署完成！\n
@@ -39,14 +39,14 @@ success = """初始化部署完成！\n
 
 # 初始化和拨号流程运行前检查函数
 # 创建标记
-def set_run_flag(set_type):
+def set_run_flag(set_type, type):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if set_type == "init":
+    if set_type == "env_init":
         with open('info/env_init.flag', "w") as file:
-            file.write(f"这台机器已经于{current_time}部署了拨号环境\n")
-    if set_type == "pppoe":
+            file.write(f"这台机器已经于{current_time}部署了pcdn环境，业务Type={type}\n")
+    if set_type == "net_conf":
         with open('info/net_conf.flag', "w") as file:
-            file.write(f"这台已经于{current_time}创建了拨号配置文件\n")
+            file.write(f"这台已经于{current_time}创建了网络配置文件，业务Type={type}\n")
 
 
 # 检查标记
@@ -107,13 +107,25 @@ def report_node_info_to_control_node_and_customer():
 
 
 # 拨号线路监控信息采集上报——线程
-def traffic_speed_collection_and_write_to_file():
+def monitor_and_push():
     def_interval = 15
+    with open(pppline_path, 'r', encoding='utf-8') as file:
+        pppline_local = json.load(file)
+    # 创建监控信息记录文件
+    # 静态信息在这里采集，实时动态信息在monitor中进行采集
+    monitor_info = {}
+    for ifname in pppline_local.keys():
+        monitor_info['line'] = {}
+        monitor_info['line'][ifname] = {}
+        monitor_info['line'][ifname]['pppoe_user'] = pppline_local[ifname]['user']
+
+
+
     while True:
         # 记录函数开始执行的时间
         start_time = time.time()
         # 启动
-        monitor.traffic_speed_and_pingloss_collection()
+        monitor.network_and_hardware_monitor()
         # 计算实际执行时间
         execution_time = time.time() - start_time
         # 确保推送间隔
@@ -129,9 +141,11 @@ def check_for_control_node_updates():
 
 
 if __name__ == "__main__":
+    ##### 在这里需要判断是专线和还是拨号，并声明这个全局变量
+    pcdn_type = "pppoe"  # or "static_ip"
     # 是否进行初始化
     logging.info(logo)
-    if not check_run_flag("env_init"):
+    if not check_run_flag("env_init", pcdn_type):
         logging.info("====================初始化环境部署====================")
         init.install_pppoe_runtime_environment()
         set_run_flag("env_init")
@@ -139,7 +153,7 @@ if __name__ == "__main__":
         logging.info("检测到系统已具备PPPoE拨号业务环境")
 
     # 检查是否已经创建过拨号文件
-    if not check_run_flag("net_conf"):
+    if not check_run_flag("net_conf", pcdn_type):
         # 开始拨号前的配置  # 需要新增专线的配置
         pppoe_basicinfo = sync.get_pppoe_basicinfo_from_control_node()
         ppp_line = pppoe_basicinfo['pppline']
@@ -184,7 +198,7 @@ if __name__ == "__main__":
     threading.Thread(target=keep_pppoe_ip_routing_tables_available).start()
     logging.info("====================动态策略路由维护线程：已启动！====================")
 
-    threading.Thread(target=traffic_speed_collection_and_write_to_file).start()
-    logging.info("====================网络监控数据采集线程：已启动！====================\n【程序实时日志】")
+    threading.Thread(target=monitor_and_push).start()
+    logging.info("====================运维监控数据采集线程：已启动！====================\n【程序实时日志】")
 
 

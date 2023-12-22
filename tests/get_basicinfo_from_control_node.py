@@ -1,7 +1,7 @@
 import requests
 import logging
 
-machineTag = "JKHBHUJH"
+machineTag = "DSIX3NGF"
 
 get_pppoe_basicinfo_api_url = "http://122.191.108.42:9119/orion/expose-api/machine-info/get-config"
 
@@ -28,5 +28,4 @@ def get_pppoe_basicinfo_from_control_node():
 
 info = get_pppoe_basicinfo_from_control_node()
 print(info)
-
 

@@ -127,17 +127,17 @@ def get_pppline_bandwitch():
                 interface_out_rates[ifname] = out_rate
 
     # 创建上下行数据写入到到监控信息字典
-    pppline_monitor_info = read_from_json_file('pppline_monitor_info.json')
-    for ifname in pppline_monitor_info.keys():
+    monitor_info = read_from_json_file('monitor_info.json')
+    for ifname in monitor_info.keys():
         online_ifname = get_local_pppoe_ifname(ifname)
-        pppline_monitor_info[ifname]['current_max_upbw_mbps'] = round(interface_out_rates.get(online_ifname, 0.00) * 8 / 1000000, 2)
+        monitor_info[ifname]['current_max_upbw_mbps'] = round(interface_out_rates.get(online_ifname, 0.00) * 8 / 1000000, 2)
         logging.info(
-            f"{ifname}({pppline_monitor_info[ifname]['pppoe_user']})实时上行速率：{pppline_monitor_info[ifname]['current_max_upbw_mbps']}mbps")
-        pppline_monitor_info[ifname]['current_max_downbw_mbps'] = round(interface_in_rates.get(online_ifname, 0.00) * 8 / 1000000, 2)
+            f"{ifname}({monitor_info[ifname]['pppoe_user']})实时上行速率：{monitor_info[ifname]['current_max_upbw_mbps']}mbps")
+        monitor_info[ifname]['current_max_downbw_mbps'] = round(interface_in_rates.get(online_ifname, 0.00) * 8 / 1000000, 2)
         logging.info(
-            f"{ifname}({pppline_monitor_info[ifname]['pppoe_user']})实时下行速率：{pppline_monitor_info[ifname]['current_max_downbw_mbps']}mbps")
+            f"{ifname}({monitor_info[ifname]['pppoe_user']})实时下行速率：{monitor_info[ifname]['current_max_downbw_mbps']}mbps")
     # 将字典写入本地文件
-    write_to_json_file(pppline_monitor_info, 'pppline_monitor_info.json')
+    write_to_json_file(monitor_info, 'monitor_info.json')
     logging.info("实时上下行数据采集完成！")
 
 
@@ -160,9 +160,9 @@ def get_pingloss_and_rtt():
                 rtt_string = f"延时：{round(float(rtt))}ms"
                 logging.info(f"{ifname_string:<20} {pccket_loss_string:<7} {rtt_string:<7}")
                 # 写入本地文件
-                pppline_monitor_info[pppoe_ifname]['pingloss'] = int(packet_loss)
-                pppline_monitor_info[pppoe_ifname]['rtt'] = float(rtt)
-                write_to_json_file(pppline_monitor_info, 'pppline_monitor_info.json')
+                monitor_info[pppoe_ifname]['pingloss'] = int(packet_loss)
+                monitor_info[pppoe_ifname]['rtt'] = float(rtt)
+                write_to_json_file(monitor_info, 'monitor_info.json')
             else:
                 logging.info(f"{pppoe_ifname} 获取ping延时数据出错")
         else:
@@ -170,8 +170,8 @@ def get_pingloss_and_rtt():
 
     def ping_round_list():
         threads = []
-        for pppoe_ifname in pppline_monitor_info.keys():
-            local_pppoe_ifname = pppline_monitor_info[pppoe_ifname]['online_ifname']
+        for pppoe_ifname in monitor_info.keys():
+            local_pppoe_ifname = monitor_info[pppoe_ifname]['online_ifname']
             thread = threading.Thread(target=ping_check, args=(pppoe_ifname, local_pppoe_ifname))
             thread.start()
             threads.append(thread)
@@ -179,33 +179,34 @@ def get_pingloss_and_rtt():
         for thread in threads:
             thread.join()
    # 读取本地json文件
-    pppline_monitor_info = read_from_json_file('pppline_monitor_info.json')
+    monitor_info = read_from_json_file('monitor_info.json')
     # 启动ping线程
     ping_round_list()
     logging.info("Ping检测完成！")
 
 
 # 网络监控数据采集上报
-def traffic_speed_and_pingloss_collection():
+def network_and_hardware_monitor():
     # 读取本地最新的拨号接口配置文件
     pppline_local = read_from_json_file('pppline.json')
 
     # 创建监控信息记录文件
-    pppline_monitor_info = {}
+    monitor_info = {}
     for ifname in pppline_local.keys():
-        pppline_monitor_info[ifname] = {}
+        monitor_info['']
+        monitor_info[ifname] = {}
         online_ifname = get_local_pppoe_ifname(ifname)
-        pppline_monitor_info[ifname]['online_ifname'] = online_ifname
-        pppline_monitor_info[ifname]['pppoe_user'] = pppline_local[ifname]['user']
+        monitor_info[ifname]['online_ifname'] = online_ifname
+        monitor_info[ifname]['pppoe_user'] = pppline_local[ifname]['user']
 
     # 写入文件
-    write_to_json_file(pppline_monitor_info, 'pppline_monitor_info.json')
+    write_to_json_file(monitor_info, 'monitor_info.json')
     # 获取接口实时上下行
     get_pppline_bandwitch()
     # 获取线路丢包延时
     get_pingloss_and_rtt()
     # 读取监控文件信息数据并推送数据到控制平台
-    pppline_monitor_info = read_from_json_file('pppline_monitor_info.json')
-    sync.update_pppline_monitor_to_control_node(pppline_monitor_info)
+    monitor_info = read_from_json_file('monitor_info.json')
+    sync.update_pppline_monitor_to_control_node(monitor_info)
 
 

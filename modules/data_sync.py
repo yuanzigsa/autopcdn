@@ -13,6 +13,9 @@ from modules.init import pppoe_dial_up
 # Time : 2023/12/08
 # Author : yuan_zi
 
+# 网络和硬件监控信息在monitor模块进行上传
+
+
 # 获取配置信息
 try:
     with open("config/config.json", "r") as file:
