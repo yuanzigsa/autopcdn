@@ -114,11 +114,14 @@ def monitor_and_push():
     # 创建监控信息记录文件
     # 静态信息在这里采集，实时动态信息在monitor中进行采集
     monitor_info = {}
+    monitor_info['system_info'] = ""
+    monitor_info['cpu_model'] =
+    monitor_info['cpu_cores'] = ""
+
     for ifname in pppline_local.keys():
         monitor_info['line'] = {}
         monitor_info['line'][ifname] = {}
         monitor_info['line'][ifname]['pppoe_user'] = pppline_local[ifname]['user']
-
 
 
     while True:
