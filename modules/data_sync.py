@@ -37,6 +37,19 @@ if not os.path.exists(info_path):
 # 读取机器的唯一标识
 machineTag = open(os.path.join(info_path, 'machineTag.info'), 'r').read().replace('\n', '')
 
+# 写json文件
+def write_to_json_file(value, file):
+    path = os.path.join("info", file)
+    with open(path, 'w', encoding='utf-8') as file:
+        json.dump(value, file, ensure_ascii=False, indent=2)
+
+
+# 读json文件
+def read_from_json_file(file):
+    path = os.path.join("info", file)
+    with open(path, 'r', encoding='utf-8') as file:
+        value = json.load(file)
+    return value
 
 def get_pppoe_basicinfo_from_control_node():
     params = {

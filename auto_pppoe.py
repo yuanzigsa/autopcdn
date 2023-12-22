@@ -61,9 +61,7 @@ def check_run_flag(check_type):
 def keep_pppoe_ip_routing_tables_available():
     while True:
         # 从本地获取拨号信息
-        pppline_path = os.path.join(sync.info_path, 'pppline.json')
-        with open(pppline_path, 'r', encoding='utf-8') as file:
-            pppline = json.load(file)
+        pppline = sync.read_from_json_file('pppline.json')
         route.update_routing_table(pppline)
         time.sleep(30)
 
@@ -109,19 +107,15 @@ def report_node_info_to_control_node_and_customer():
 # 拨号线路监控信息采集上报——线程
 def monitor_and_push():
     def_interval = 15
-    with open(pppline_path, 'r', encoding='utf-8') as file:
-        pppline_local = json.load(file)
     # 创建监控信息记录文件
-    # 静态信息在这里采集，实时动态信息在monitor中进行采集
+    # 静态信息在这里采集，实时动态信息在monitor中进行采集并推送
     monitor_info = {}
-    monitor_info['system_info'] = ""
-    monitor_info['cpu_model'] =
-    monitor_info['cpu_cores'] = ""
-
-    for ifname in pppline_local.keys():
-        monitor_info['line'] = {}
-        monitor_info['line'][ifname] = {}
-        monitor_info['line'][ifname]['pppoe_user'] = pppline_local[ifname]['user']
+    model, cores = monitor.get_cpu_info()
+    monitor_info['system_info'] = monitor.get_system_info()
+    monitor_info['cpu_model'] = model
+    monitor_info['cpu_cores'] = cores
+    logging.info(monitor_info)
+    sync.write_to_json_file(monitor_info, 'monitor_info.json')
 
 
     while True:
@@ -145,18 +139,19 @@ def check_for_control_node_updates():
 
 if __name__ == "__main__":
     ##### 在这里需要判断是专线和还是拨号，并声明这个全局变量
-    pcdn_type = "pppoe"  # or "static_ip"
+    if 1+1 ==2:
+        pcdn_type = "pppoe"  # or "static_ip"
     # 是否进行初始化
     logging.info(logo)
-    if not check_run_flag("env_init", pcdn_type):
+    if not check_run_flag("env_init"):
         logging.info("====================初始化环境部署====================")
         init.install_pppoe_runtime_environment()
-        set_run_flag("env_init")
+        set_run_flag("env_init", pcdn_type)
     else:
         logging.info("检测到系统已具备PPPoE拨号业务环境")
 
     # 检查是否已经创建过拨号文件
-    if not check_run_flag("net_conf", pcdn_type):
+    if not check_run_flag("net_conf"):
         # 开始拨号前的配置  # 需要新增专线的配置
         pppoe_basicinfo = sync.get_pppoe_basicinfo_from_control_node()
         ppp_line = pppoe_basicinfo['pppline']
@@ -204,4 +199,7 @@ if __name__ == "__main__":
     threading.Thread(target=monitor_and_push).start()
     logging.info("====================运维监控数据采集线程：已启动！====================\n【程序实时日志】")
 
+
+
+# 下一步优化线程， 线程是否存活
 
