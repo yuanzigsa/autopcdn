@@ -1,3 +1,3 @@
-from auto_pppoe import pcdn_type
+from auto_pcdn import pcdn_type
 
 print(pcdn_type)

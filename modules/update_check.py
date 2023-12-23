@@ -12,7 +12,10 @@ from modules.logger import logging
 def check_for_updates_and_config():
     def check_updates(pppline_local, pppline_control_node):
         if pppline_local != pppline_control_node:
-            logging.info("检测到控制节点拨号信息发生更新")
+            info = "检测到拨号信息发生更新"
+            logging.info(info)
+            # 上报平台机器动态
+            sync.update_local_operate_to_control_node(1, info, '平台信息更新检查')
             # 1. pppline_control_node有的键而pppline_local中没有的：账号新增
             keys_only_in_control_node = set(pppline_control_node.keys()) - set(pppline_local.keys())
             # 2. pppline_control_node没有有的键而pppline_local有的：账号减少
@@ -30,9 +33,7 @@ def check_for_updates_and_config():
     # 获取当前云平台最新数据
     pppline_control_node = sync.get_pppoe_basicinfo_from_control_node()["pppline"]
     # 获取本地存储的上次拨号成功的数据
-    pppline_path = os.path.join('info', 'pppline.json')
-    with open(pppline_path, 'r', encoding='utf-8') as file:
-        pppline_local = json.load(file)
+    pppline_local = sync.read_from_json_file('pppline.json')
     # 获取差异数据
     keys_only_in_control_node, keys_only_in_local, same_keys_but_different_values = check_updates(pppline_local, pppline_control_node)
     # 1. 云平台有本地没有
@@ -48,6 +49,8 @@ def check_for_updates_and_config():
         # 创建新增项的拨号前配置
         init.create_pppoe_connection_file_and_routing_tables(add_pppoe_list)
         logging.info("所有新增拨号账号已建立拨号前的配置文件并写入密码信息")
+        # 写入本地
+        sync.write_to_json_file(pppline_control_node, 'pppline.json')
 
     # 2. 本地有云平台没有
     if keys_only_in_local:
@@ -70,5 +73,4 @@ def check_for_updates_and_config():
         init.create_pppoe_connection_file_and_routing_tables(modify_pppoe_list)
         logging.info("所有变更拨号账号已建立拨号前的配置文件并写入密码信息")
         # 写入此次拨号信息到硬盘，方便后续从云控制平台拉去信息与其对比，判断是否有更新
-        with open(pppline_path, 'w', encoding='utf-8') as file:
-            json.dump(pppline_control_node, file, ensure_ascii=False, indent=2)
+        sync.write_to_json_file(pppline_control_node, 'pppline.json')

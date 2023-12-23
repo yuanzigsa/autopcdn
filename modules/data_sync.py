@@ -29,6 +29,7 @@ get_pppoe_basicinfo_api_url = config_info["get_pppoe_basicinfo_api_url"]
 update_pppline_api_url = config_info["update_pppline_api_url"]
 update_dial_connect_api_url = config_info["update_dial_connect_api_url"]
 update_pppline_monitor_info_api_url = config_info["update_pppline_monitor_info_api_url"]
+update_monitor_info_api_url = config_info["update_monitor_info_api_url"]
 question_headers = config_info["question_headers"]
 
 info_path = "info"
@@ -86,22 +87,22 @@ def get_local_pppoe_ip(pppoe_ifname):
         logging.exception(f"发生异常：{str(e)}")
 
 
-def update_pppline_to_control_node(node_status, pppline):
+def update_local_operate_to_control_node(node_status, info, operate):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     data = {
         "alarmTime": current_time,
         "machineTag": machineTag,
         "nodeStatus": node_status,
-        "pppline": pppline
+        "pppline": info
     }
     try:
         response = requests.post(update_pppline_api_url, headers=question_headers, json=data)
         if "200" in response.text:
-            logging.info("更新pppoe在线状态信息成功,已经推送至控制平台")
+            logging.info(f"已将{operate}操作上报至平台")
         else:
-            logging.error(f"更新pppoe在线状态信息失败，错误信息：{response.text}")
+            logging.error("更新机器操作动态信息失败，错误信息：{response.text}")
     except requests.RequestException as e:
-        logging.error("更新pppoe在线状态信息失败，错误信息：%s", str(e))
+        logging.error("更新机器操作动态信息失败，错误信息：%s", str(e))
 
 
 def update_pppline_monitor_to_control_node(pppline_monitor_info):
@@ -112,21 +113,40 @@ def update_pppline_monitor_to_control_node(pppline_monitor_info):
         "reportTime": current_time
     }
     try:
-        response = requests.post(update_pppline_monitor_info_api_url, headers=question_headers, json=data)
+        response = requests.post(update_monitor_info_api_url, headers=question_headers, json=data)
         if "200" in response.text:
-            logging.info("已将最新pppoe拨号线路监控信息推送至控制平台")
+            logging.info("已将最的线路监控信息推送至控制平台")
         else:
-            logging.error(f"更新pppoe拨号线路监控信息失败，错误信息：{response.text}")
+            logging.error(f"更新线路监控信息失败，错误信息：{response.text}")
     except requests.RequestException as e:
-        logging.error("更新pppoe拨号线路监控信息失败，错误信息：%s", str(e))
+        logging.error("更新线路监控信息失败，错误信息：%s", str(e))
 
 
-def update_dial_connect_to_control_node(type, node_name, pppoe_ifname):
+
+def update_monitor_info_to_control_node(monitor_info):
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    data = {
+        "machineTag": machineTag,
+        "monitorInfo": monitor_info,
+        "reportTime": current_time
+    }
+    try:
+        response = requests.post(update_monitor_info_api_url, headers=question_headers, json=data)
+        if "200" in response.text:
+            logging.info("已将最新网络和硬件监控信息推送至控制平台")
+        else:
+            logging.error(f"更新网络和硬件监控信息失败，错误信息：{response.text}")
+    except requests.RequestException as e:
+        logging.error("更新网络和硬件监控信息失败，错误信息：%s", str(e))
+
+
+
+def update_dial_connect_to_control_node(type, node_name, pppoe_ifname, pppoe_user):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if type == 30:
-        info = f"{node_name}节点机器-{machineTag}：{pppoe_ifname}拨号断线"
+        info = f"{node_name}节点机器-{machineTag}：{pppoe_ifname}({pppoe_user})拨号断线"
     if type == 40:
-        info = f"{node_name}节点机器-{machineTag}：{pppoe_ifname}拨号重连成功"
+        info = f"{node_name}节点机器-{machineTag}：{pppoe_ifname}{(pppoe_user)}拨号重连成功"
     data = {
         "alarmComment": f"{current_time} {info}",
         "alarmTime": current_time,
@@ -191,7 +211,7 @@ def check_for_reconnection_and_update_to_crontrol_node():
             type = 30
             pppoe_user = pppline[pppoe_ifname]['user']
             if check_update_discon_flag(pppoe_ifname) is False:
-                update_dial_connect_to_control_node(type, node_name, pppoe_ifname)
+                update_dial_connect_to_control_node(type, node_name, pppoe_ifname, pppoe_user)
                 set_update_discon_flag(pppoe_ifname)
                 logging.info(f"{pppoe_ifname}({pppoe_user}) 检测到拨号网卡断线，已经上报控制节点")
             # 检测pppoe-connect进程是否存在，避免一号多拨
@@ -254,7 +274,7 @@ def collect_node_spacific_info_update_to_control_node_or_customers():
         pppline_local[pppoe_ifname]["ip"] = get_local_pppoe_ip(f'{pppoe_ifname}')
 
     # 上报平台
-    update_pppline_to_control_node(node_status, pppline_local)
+    # update_pppline_to_control_node(node_status, '已经将最新线路信息推送至客户')
     # 是否上报客户
     if report_on == 1:
         # 上报路径
@@ -280,6 +300,8 @@ def collect_node_spacific_info_update_to_control_node_or_customers():
         with open(reportLocalPath, 'w', encoding='utf-8') as file:
             json.dump(pppoe_basicinfo_for_customers, file, ensure_ascii=False, indent=2)
         logging.info("已经向客户更新推送了最新的拨号状态信息")
+        # 告诉平台已经上报了客户
+        update_local_operate_to_control_node(node_status, '已经将最新线路信息推送至客户','线路信息上报')
     # 存储一份到本地
     pppoe_basicinfo_path = os.path.join(info_path, 'pppoe_basicinfo.json')
     with open(pppoe_basicinfo_path, 'w', encoding='utf-8') as file:

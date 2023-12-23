@@ -1,5 +1,4 @@
 import re
-import os
 import json
 import time
 import psutil
@@ -55,6 +54,12 @@ def get_memory_info():
     memory = psutil.virtual_memory()
     return memory.total, memory.used, memory.percent
 
+
+def get_total_memory_gb():
+    memory_info = psutil.virtual_memory()
+    total_memory_bytes = memory_info.total
+    total_memory_gb = round(total_memory_bytes / (1024 ** 3))
+    return total_memory_gb
 
 def get_disk_io():
     disk_io_before = psutil.disk_io_counters()
@@ -296,7 +301,8 @@ def network_and_hardware_monitor():
     get_pingloss_and_rtt()
     # 读取监控文件信息数据并推送数据到控制平台
     monitor_info = sync.read_from_json_file('monitor_info.json')
-    logging.info(monitor_info)
-    sync.update_pppline_monitor_to_control_node(monitor_info)
+    compressed_monitor_info = json.dumps(monitor_info, separators=(',', ':'), ensure_ascii=False)
 
+    # 推送
+    sync.update_monitor_info_to_control_node(compressed_monitor_info)
 
