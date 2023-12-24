@@ -12,7 +12,7 @@ from modules.logger import logging
 # Author : yuan_zi
 
 """
-PPoE拨号初始化环境
+PCDN环境部署初始化（包含pppoe拨号业务和）
 """
 
 

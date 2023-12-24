@@ -64,16 +64,20 @@ def check_run_flag(check_type):
         return os.path.exists('info/net_conf.flag')
 
 
-# 路由表维护-线程
+# 动态策略路由维护-线程
 def keep_pppoe_ip_routing_tables_available():
     while True:
-        # 从本地获取拨号信息
-        pppline = sync.read_from_json_file('pppline.json')
-        route.update_routing_table(pppline)
-        time.sleep(30)
+        try:
+            # 从本地获取拨号信息
+            pppline = sync.read_from_json_file('pppline.json')
+            route.update_routing_table(pppline)
+            time.sleep(30)
+        except Exception as e:
+            logging.error(f"动态策略路由维护线程出错，错误信息：{e}，正在尝试重新启动")
+            time.sleep(1)
 
 
-# 重拨信息汇报-线程
+# 断线重拨监控上报-线程
 def monitor_dial_connect_and_update():
     pppoe_basicinfo = sync.get_pppoe_basicinfo_from_control_node()
     retry_counts = {}
@@ -85,11 +89,15 @@ def monitor_dial_connect_and_update():
         with open(retry_counts_path, 'w', encoding='utf-8') as file:
             json.dump(retry_counts, file, ensure_ascii=False, indent=2)
     while True:
-        sync.check_for_reconnection_and_update_to_crontrol_node()
-        time.sleep(1)
+        try:
+            sync.check_for_reconnection_and_update_to_crontrol_node()
+            time.sleep(1)
+        except Exception as e:
+            logging.error(f"断线重拨监控上报线程出错，错误信息：{e}, 正在尝试重新启动")
+            time.sleep(1)
 
 
-# 节点综合信息上报平台及客户-线程
+# 节点信息更新上报线程-线程
 def report_node_info_to_control_node_and_customer():
     def_interval = 20
     pppoe_basicinfo = sync.get_pppoe_basicinfo_from_control_node()
@@ -100,18 +108,22 @@ def report_node_info_to_control_node_and_customer():
         if not os.path.exists(target_directory):
             os.makedirs(target_directory)
     while True:
-        # 记录函数开始执行的时间
-        start_time = time.time()
-        # 启动
-        sync.collect_node_spacific_info_update_to_control_node_or_customers()
-        # 计算实际执行时间
-        execution_time = time.time() - start_time
-        # 确保推送间隔
-        next_interval = max(def_interval - execution_time, 1)
-        time.sleep(next_interval)
+        try:
+            # 记录函数开始执行的时间
+            start_time = time.time()
+            # 启动
+            sync.collect_node_spacific_info_update_to_control_node_or_customers()
+            # 计算实际执行时间
+            execution_time = time.time() - start_time
+            # 确保推送间隔
+            next_interval = max(def_interval - execution_time, 1)
+            time.sleep(next_interval)
+        except Exception as e:
+            logging.error(f"节点信息更新上报线程出错，错误信息：{e}, 正在尝试重新启动")
+            time.sleep(1)
 
 
-# 线路监控信息采集上报——线程
+# 运维监控数据采集上报——线程
 def monitor_and_push():
     def_interval = 15
     # 创建监控信息记录文件
@@ -121,30 +133,47 @@ def monitor_and_push():
     monitor_info['system_info'] = monitor.get_system_info()
     monitor_info['cpu_model'] = model
     monitor_info['cpu_cores'] = cores
-
     sync.write_to_json_file(monitor_info, 'monitor_info.json')
-
     while True:
-        # 记录函数开始执行的时间
-        start_time = time.time()
-        # 启动
-        monitor.network_and_hardware_monitor()
-        # 计算实际执行时间
-        execution_time = time.time() - start_time
-        # 确保推送间隔
-        next_interval = max(def_interval - execution_time, 1)
-        time.sleep(next_interval)
+        try:
+            # 记录函数开始执行的时间
+            start_time = time.time()
+            # 启动
+            monitor.network_and_hardware_monitor()
+            # 计算实际执行时间
+            execution_time = time.time() - start_time
+            # 确保推送间隔
+            next_interval = max(def_interval - execution_time, 1)
+            time.sleep(next_interval)
+        except Exception as e:
+            logging.error(f"运维监控数据采集上报线程出错，错误信息：{e}, 正在尝试重新启动")
+            time.sleep(1)
 
 
-# 检查控制节点是否有拨号信息的更新-线程
+# 节点信息更新检查-线程
 def check_for_control_node_updates():
     while True:
-        update.check_for_updates_and_config()
-        time.sleep(600)
+        try:
+            update.check_for_updates_and_config()
+            time.sleep(600)
+        except Exception as e:
+            logging.error(f"节点信息更新检查线程出错，错误信息：{e}, 正在尝试重新启动")
+            time.sleep(1)
+
+
+# 执行线程任务
+def start_thread(target_function, thread_name):
+    # 创建线程对象并设置守护线程
+    thread = threading.Thread(target=target_function, name=thread_name)
+    # 启动线程
+    thread.start()
+    # 记录日志
+    logging.info(f"===================={thread_name}线程：已启动！====================")
+
 
 
 if __name__ == "__main__":
-    ##### 在这里需要判断是专线和还是拨号，并声明这个全局变量
+    # 在这里需要判断是专线和还是拨号，并声明这个全局变量
     if 1+1 ==2:
         pcdn_type = "pppoe"  # or "static_ip"
     # 是否进行初始化
@@ -190,22 +219,8 @@ if __name__ == "__main__":
         logging.info("检测到系统已存在pppoe拨号文件，后续会从服务器更新验证这些文件是否是最新的")
 
     # 初始化后启动线程持续运行其他后续工作线程
-    threading.Thread(target=report_node_info_to_control_node_and_customer).start()
-    logging.info("====================节点信息更新上报线程：已启动！====================")
-
-    threading.Thread(target=monitor_dial_connect_and_update).start()
-    logging.info("====================断线重拨监控上报线程：已启动！====================")
-
-    threading.Thread(target=check_for_control_node_updates).start()
-    logging.info("====================节点信息更新检查线程：已启动！====================")
-
-    threading.Thread(target=keep_pppoe_ip_routing_tables_available).start()
-    logging.info("====================动态策略路由维护线程：已启动！====================")
-
-    threading.Thread(target=monitor_and_push).start()
-    logging.info("====================运维监控数据采集线程：已启动！====================\n【程序实时日志】")
-
-
-
-# 下一步优化线程， 线程是否存活
-
+    start_thread(report_node_info_to_control_node_and_customer, '节点信息更新上报')
+    start_thread(monitor_dial_connect_and_update, '断线重拨监控上报')
+    start_thread(check_for_control_node_updates, '节点信息更新检查')
+    start_thread(keep_pppoe_ip_routing_tables_available, '动态策略路由维护')
+    start_thread(monitor_and_push, '运维监控数据采集')

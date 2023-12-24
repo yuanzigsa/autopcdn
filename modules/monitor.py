@@ -207,14 +207,23 @@ def get_pppline_bandwitch():
     for ifname in monitor_info['line'].keys():
         online_ifname = get_local_pppoe_ifname(ifname)
         monitor_info['line'][ifname]['current_max_upbw_mbps'] = round(interface_out_rates.get(online_ifname, 0.00) * 8 / 1000000, 2)
-        logging.info(
-            f"{ifname}({monitor_info['line'][ifname]['pppoe_user']})实时上行速率：{monitor_info['line'][ifname]['current_max_upbw_mbps']}mbps")
+        # logging.info(f"{ifname}({monitor_info['line'][ifname]['pppoe_user']})实时上行速率：{monitor_info['line'][ifname]['current_max_upbw_mbps']}mbps")
         monitor_info['line'][ifname]['current_max_downbw_mbps'] = round(interface_in_rates.get(online_ifname, 0.00) * 8 / 1000000, 2)
-        logging.info(
-            f"{ifname}({monitor_info['line'][ifname]['pppoe_user']})实时下行速率：{monitor_info['line'][ifname]['current_max_downbw_mbps']}mbps")
+        # logging.info(f"{ifname}({monitor_info['line'][ifname]['pppoe_user']})实时下行速率：{monitor_info['line'][ifname]['current_max_downbw_mbps']}mbps")
     # 将字典写入本地文件
     sync.write_to_json_file(monitor_info, 'monitor_info.json')
-    logging.info("实时上下行数据采集完成！")
+    # 输出概况日志
+    upbw_list = [values['current_max_upbw_mbps'] for values in monitor_info['line'].values()]
+    max_upbw = max(upbw_list)
+    min_upbw = min(upbw_list)
+    avg_upbw = round(sum(upbw_list) / len(upbw_list), 2)
+    downbw_list = [values['current_max_downbw_mbps'] for values in monitor_info['line'].values()]
+    max_downbw = max(downbw_list)
+    min_downbw = min(downbw_list)
+    avg_downbw = round(sum(downbw_list) / len(downbw_list), 2)
+    logging.info(f"实时上下行数据采集完成！")
+    logging.info(f"当前所有线路上行数据：[平均值：{avg_upbw}mbps, 最大值：{max_upbw}mbps, 最小值：{min_upbw}mbps]")
+    logging.info(f"当前所有线路下行数据：[平均值：{avg_downbw}mbps, 最大值：{max_downbw}mbps, 最小值：{min_downbw}mbps]")
 
 
 def get_pingloss_and_rtt():
@@ -231,10 +240,10 @@ def get_pingloss_and_rtt():
             if rtt:
                 packet_loss = packet_loss.group(1)
                 rtt = rtt.group(3)
-                ifname_string = f"拨号接口：{pppoe_ifname}({local_pppoe_ifname})"
-                pccket_loss_string = f"丢包率：{int(packet_loss)}%"
-                rtt_string = f"延时：{round(float(rtt))}ms"
-                logging.info(f"{ifname_string:<20} {pccket_loss_string:<7} {rtt_string:<7}")
+                # ifname_string = f"拨号接口：{pppoe_ifname}({local_pppoe_ifname})"
+                # pccket_loss_string = f"丢包率：{int(packet_loss)}%"
+                # rtt_string = f"延时：{round(float(rtt))}ms"
+                # logging.info(f"{ifname_string:<20} {pccket_loss_string:<7} {rtt_string:<7}")
                 # 写入本地文件
                 monitor_info['line'][pppoe_ifname]['pingloss'] = int(packet_loss)
                 monitor_info['line'][pppoe_ifname]['rtt'] = float(rtt)
@@ -258,7 +267,19 @@ def get_pingloss_and_rtt():
     monitor_info = sync.read_from_json_file('monitor_info.json')
     # 启动ping线程
     ping_round_list()
-    logging.info("Ping检测完成！")
+    # 输出概况到日志
+    pingloss_values = [monitor_info['line'][pppoe_ifname]['pingloss'] for pppoe_ifname in monitor_info['line']]
+    avg_pingloss = round(sum(pingloss_values) / len(pingloss_values), 2)
+    max_pingloss = max(pingloss_values)
+    min_pingloss = min(pingloss_values)
+    rtt_values = [monitor_info['line'][pppoe_ifname]['rtt'] for pppoe_ifname in monitor_info['line']]
+
+    avg_rtt = round(sum(rtt_values) / len(rtt_values), 2)
+    max_rtt = round(max(rtt_values), 2)
+    min_rtt = round(min(rtt_values), 2)
+    logging.info(f"ping检测完成！")
+    logging.info(f"当前所有线路pingloss数据：[平均值：{avg_pingloss}%， 最大值：{max_pingloss}%， 最小值：{min_pingloss}%]")
+    logging.info(f"当前所有线路平均rtt数据：[平均值：{avg_rtt}ms， 最大值：{max_rtt}ms， 最小值：{min_rtt}ms]")
 
 
 # 网络监控数据采集上报
