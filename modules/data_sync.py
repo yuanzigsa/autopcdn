@@ -8,6 +8,7 @@ import subprocess
 from datetime import datetime
 from modules.logger import logging
 from modules.init import pppoe_dial_up
+import modules.route_keeper as route
 
 
 # Time : 2023/12/08
@@ -222,6 +223,9 @@ def check_for_reconnection_and_update_to_crontrol_node():
             type = 40
             if check_update_discon_flag(pppoe_ifname):
                 logging.info(f"{pppoe_ifname} 检测到拨号网卡已经重连，已经上报控制节点")
+                # 立即更新路由
+                route.update_routing_table(pppline)
+
                 if pppoe_ifname not in retry_counts.keys():
                     retry_counts[pppoe_ifname] = 1
                 if retry_counts[pppoe_ifname] is None:
@@ -301,7 +305,7 @@ def collect_node_spacific_info_update_to_control_node_or_customers():
             json.dump(pppoe_basicinfo_for_customers, file, ensure_ascii=False, indent=2)
         logging.info("已经向客户更新推送了最新的拨号状态信息")
         # 告诉平台已经上报了客户
-        update_local_operate_to_control_node(node_status, '已经将最新线路信息推送至客户','线路信息上报')
+        update_local_operate_to_control_node(node_status, '已经将最新线路信息推送至客户','线路信息上报至客户')
     # 存储一份到本地
     pppoe_basicinfo_path = os.path.join(info_path, 'pppoe_basicinfo.json')
     with open(pppoe_basicinfo_path, 'w', encoding='utf-8') as file:

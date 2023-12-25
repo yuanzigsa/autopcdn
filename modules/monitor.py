@@ -230,7 +230,7 @@ def get_pingloss_and_rtt():
     # 继续优化的方向就是将ping结果先存入字典，然后进行排序后输出，目前多线程结果输出是乱序的
     # fping -I eth0 -c 4 -q 8.8.8.8 8.8.4.4
     def ping_check(pppoe_ifname, local_pppoe_ifname):
-        command = f"ping -i 0.5 -c 10 -I {pppoe_ifname} baidu.com"
+        command = f"ping -i 0.5 -c 20 -I {pppoe_ifname} baidu.com"
         process = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
         output, error = process.communicate()
 
@@ -279,7 +279,7 @@ def get_pingloss_and_rtt():
     min_rtt = round(min(rtt_values), 2)
     logging.info(f"ping检测完成！")
     logging.info(f"当前所有线路pingloss数据：[平均值：{avg_pingloss}%， 最大值：{max_pingloss}%， 最小值：{min_pingloss}%]")
-    logging.info(f"当前所有线路平均rtt数据：[平均值：{avg_rtt}ms， 最大值：{max_rtt}ms， 最小值：{min_rtt}ms]")
+    logging.info(f"当前所有线路rtt数据：[平均值：{avg_rtt}ms， 最大值：{max_rtt}ms， 最小值：{min_rtt}ms]")
 
 
 # 网络监控数据采集上报
@@ -315,7 +315,7 @@ def network_and_hardware_monitor():
 
     # 写入文件
     sync.write_to_json_file(monitor_info, 'monitor_info.json')
-    logging.info("硬件信息已采集完成")
+    logging.info("硬件信息已采集完成！")
     # 获取接口实时上下行
     get_pppline_bandwitch()
     # 获取线路丢包延时
