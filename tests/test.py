@@ -1,3 +1,8 @@
-from auto_pcdn import pcdn_type
+a = 1
+b = 2
 
-print(pcdn_type)
+
+if a == 1:
+    print("1. shide")
+elif a == 1:
+    print("2.shide")

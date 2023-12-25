@@ -16,7 +16,7 @@ PCDN环境部署初始化（包含pppoe拨号业务和）
 """
 
 
-def install_pppoe_runtime_environment():
+def install_pppoe_runtime_environment(type):
     def check_configure_dns():
         logging.info("开始检测和配置DNS...")
         result = subprocess.run(['grep', '-E', '^nameserver', '/etc/resolv.conf'], stdout=subprocess.PIPE,
@@ -107,12 +107,12 @@ def install_pppoe_runtime_environment():
     check_configure_dns()
     close_Net_workManager()
     install_package('epel-release')
-    install_package('rp-pppoe')
     install_package('vconfig')
     install_package("net-snmp")
     install_package("net-snmp-utils")
     install_package("fping")
-    # install_package('docker')
+    if type == "pppoe":
+        install_package('rp-pppoe')
     load_8021q_module()
     add_8021q_to_modules_file()
     configure_snmpd_conf_and_start_the_service()
@@ -269,3 +269,50 @@ def pppoe_dial_up(pppoe_ifname, pppoe_user):
             logging.error(f"{pppoe_ifname}({pppoe_user}) 拨号超时！")
     except subprocess.CalledProcessError as e:
         logging.error(f"{pppoe_ifname} 拨号出错：{e}")
+
+
+
+# 创建专线ip的网络配置文件以及创建路由表
+def create_static_ip_connection_file_and_routing_tables(ppp_line, pcdn_type):
+    # 定义初始路由表编号
+    table_number = 50
+    # 定义初始mac
+    mac_address = "00:00:00:00:00:01"
+    # 创建本机的mac地址表用于后续进行比对
+    original_mac_address_list = get_local_mac_address_list()
+    # 遍历平台提供的信息并开始写入配置文件
+    for ifname in ppp_line.keys():
+        # 拨号业务
+        if pcdn_type == "pppoe":
+            pppoe_user = ppp_line[ifname]['user']
+            pppoe_pass = ppp_line[ifname]['pass']
+            pppoe_vlan = ppp_line[ifname]['vlan']
+            dial_up_ifnmme = ppp_line[ifname]['eth']
+            write_secrets_to_pppoe_config_file(pppoe_user, pppoe_pass)
+            # 如果接口vlan文件已存在，则不进行创建
+            if pppoe_vlan == "0":
+                logging.info(f"{ifname}没有VLAN")
+                create_ifconfig_file('pppoe-no-vlan', ifname=dial_up_ifnmme, vlanid=pppoe_vlan, pppoe_user=pppoe_user, pppoe_number=ifname)
+                # 创建路由表并通过create_routing_tables的返回值得出新的路由表优先级编号
+                table_number = create_routing_tables(table_number, ifname)
+            else:
+                logging.info(f"{ifname}所属VLAN{pppoe_vlan}")
+                create_ifconfig_file('ifname-vlan', ifname=dial_up_ifnmme, vlanid=pppoe_vlan, pppoe_user=pppoe_user, macaddr=mac_address, pppoe_number=ifname)
+                create_ifconfig_file('pppoe-vlan', ifname=dial_up_ifnmme, vlanid=pppoe_vlan, pppoe_user=pppoe_user, macaddr=mac_address, pppoe_number=ifname)
+                table_number = create_routing_tables(table_number, ifname)
+                # 添加这个mac到已存在列表，避免后续mac与之重复
+                original_mac_address_list.append(mac_address)
+                mac_address = derivation_mac_address(mac_address, original_mac_address_list)  # mac地址后2位尾数按照16进制+1
+                # 开启Vlan子接口
+                cmd = f"ifup {dial_up_ifnmme}.{pppoe_vlan}"
+                subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                logging.info(f"Vlan子接口{dial_up_ifnmme}.{pppoe_vlan}已启用")
+        # 专线业务
+        elif pcdn_type == "static-ip":
+            ip = ppp_line[ifname]['ip']
+            mask = ppp_line[ifname]['mask']
+            gateway = ppp_line[ifname]['gateway']
+            local_ifname = ppp_line[ifname]['eth']
+            vlan = ppp_line[ifname]['vlan']
+
+    return ppp_line

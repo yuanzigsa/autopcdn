@@ -190,7 +190,7 @@ if __name__ == "__main__":
     # 是否进行初始化
     if not check_run_flag("env_init"):
         logging.info("====================初始化环境部署====================")
-        init.install_pppoe_runtime_environment()
+        init.install_pppoe_runtime_environment(pcdn_type)
         set_run_flag("env_init", pcdn_type)
     else:
         logging.info("检测到系统已具备PCDN业务环境")
@@ -199,7 +199,10 @@ if __name__ == "__main__":
     if not check_run_flag("net_conf"):
         # 开始拨号前的配置  # 需要新增专线的配置
         logging.info("====================创建拨号配置文件===================")
-        pppline = init.create_pppoe_connection_file_and_routing_tables(ppp_line)
+        if pcdn_type == "pppoe":
+            pppline = init.create_pppoe_connection_file_and_routing_tables(ppp_line)
+        if pcdn_type == "static_ip":
+            print(1)
         set_run_flag("net_conf")
         # 开始拨号
         logging.info("====================开始拨号...=======================")
