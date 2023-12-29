@@ -186,6 +186,8 @@ if __name__ == "__main__":
                 pcdn_type = "pppoe"
             elif "ip" in key:
                 pcdn_type = "static_ip"
+            else:
+                logging.info("未知的pcdn类型，在控制平台检查关于本机器的网络配置")
     logging.info(f"本机的业务类型为：[{pcdn_type}]")
     # 是否进行初始化
     if not check_run_flag("env_init"):
