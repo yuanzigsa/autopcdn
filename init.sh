@@ -62,6 +62,15 @@ check_log() {
     fi
 }
 
+# 检查服务状态
+status=$(service auto_pcdn status > /dev/null 2>&1 && echo "active" || echo "inactive")
+if [ "$status" = "active" ]; then
+    echo -e "$(date "+%Y-%m-%d %H:%M:%S") 检测到auto_pcdn已经处于Active状态。\n"
+    service auto_pcdn status
+    echo -e "\n$(date "+%Y-%m-%d %H:%M:%S") 操作已取消。"
+    exit 1
+fi
+
 # 校准时间时区
 sudo yum install -y ntpdate &> /dev/null && sudo ntpdate time.windows.com &> /dev/null && sudo timedatectl set-timezone Asia/Shanghai &> /dev/null && sudo hwclock --systohc &> /dev/null
 # 写入machineTag到系统内
@@ -69,11 +78,11 @@ mkdir -p /opt/auto_pcdn/info && echo "@@MACHINETAG@@" > /opt/auto_pcdn/info/mach
 echo "$(date "+%Y-%m-%d %H:%M:%S") machineTag已写入系统内"
 
 # 下载auto_pcdn脚本程序
-curl -o /opt/auto_pcdn/Auto_PPPoE_v1.0.tar.gz -L https://gitee.com/yuanzichaopu/auto_pppoe/releases/download/auto_pppoe_v1.0/Auto_PPPoE_v1.0.tar.gz
-echo "$(date "+%Y-%m-%d %H:%M:%S") auto_pppoe.py监管程序下载完成"
+curl -o /opt/auto_pcdn/auto_pcdn.tar.gz -L https://gitee.com/yuanzichaopu/auto_pppoe/releases/download/auto_pcdn_v1.2/auto_pcdn.tar.gz
+echo "$(date "+%Y-%m-%d %H:%M:%S") auto_pcdn监管程序下载完成"
 cd /opt/auto_pcdn/
-tar -zxvf  Auto_PPPoE_v1.0.tar.gz &> /dev/null
-rm -rf Auto_PPPoE_v1.0.tar.gz
+tar -zxvf  auto_pcdn.tar.gz &> /dev/null
+rm -rf auto_pcdn.tar.gz
 echo "$(date "+%Y-%m-%d %H:%M:%S") 已经将监管程序包解压至/opt/auto_pppoe/目录下"
 
 # 安装yum源插件
