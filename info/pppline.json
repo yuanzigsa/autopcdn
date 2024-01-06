@@ -1,0 +1,42 @@
+{
+  "ppp0": {
+    "eth": "ens224",
+    "mask": "",
+    "pass": 123456,
+    "user": 202301,
+    "vlan": "501",
+    "gateway": "",
+    "disabled": "0",
+    "bandwidth": "100"
+  },
+  "ppp1": {
+    "eth": "ens224",
+    "mask": "",
+    "pass": 123456,
+    "user": 202302,
+    "vlan": "502",
+    "gateway": "",
+    "disabled": "0",
+    "bandwidth": "100"
+  },
+  "ppp2": {
+    "eth": "ens224",
+    "mask": "",
+    "pass": 123456,
+    "user": 202303,
+    "vlan": "503",
+    "gateway": "",
+    "disabled": "0",
+    "bandwidth": "100"
+  },
+  "ppp3": {
+    "eth": "ens224",
+    "mask": "",
+    "pass": 123456,
+    "user": 202304,
+    "vlan": "504",
+    "gateway": "",
+    "disabled": "0",
+    "bandwidth": "100"
+  }
+}

@@ -182,13 +182,16 @@ if __name__ == "__main__":
     # 在这里需要判断是专线和还是拨号，并声明这个全局变量
     for ifname in ppp_line:
         for key in  ppp_line[ifname]:
-            if "user"  in key:
+            if "user" in key:
                 pcdn_type = "pppoe"
+                break
             elif "ip" in key:
                 pcdn_type = "static_ip"
-            else:
-                logging.info("未知的pcdn类型，在控制平台检查关于本机器的网络配置")
-    logging.info(f"本机的业务类型为：[{pcdn_type}]")
+                break
+    logging.info(f"本机的网络类型为：[{pcdn_type}]")
+    if pcdn_type is None:
+        logging.info("未知的pcdn类型，在控制平台检查关于本机器的网络配置")
+
     # 是否进行初始化
     if not check_run_flag("env_init"):
         logging.info("====================初始化环境部署====================")
@@ -205,7 +208,7 @@ if __name__ == "__main__":
             pppline = init.create_pppoe_connection_file_and_routing_tables(ppp_line)
         if pcdn_type == "static_ip":
             print(1)
-        set_run_flag("net_conf")
+        set_run_flag("net_conf", pcdn_type)
         # 开始拨号
         logging.info("====================开始拨号...=======================")
         for ifname in pppline.keys():

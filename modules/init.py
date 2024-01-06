@@ -210,7 +210,7 @@ def derivation_mac_address(mac_addr, ori_mac_list):
     new_mac_address = mac_addr[:-2] + new_last_two_digits
     # 与本机所有mac地址比较，如果已存在，再生成新mac检查是否与本机现有mac重复,直到获取唯一的mac
     while new_mac_address in ori_mac_list:
-        new_mac_address = derivation_mac_address(new_mac_address)
+        new_mac_address = derivation_mac_address(new_mac_address, ori_mac_list)
     return new_mac_address
 
 

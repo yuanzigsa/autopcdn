@@ -1,5 +1,9 @@
 #!/bin/bash
-
+#===============================================================================
+#Time : 24-1-5 下午14:18
+#Author : yuanzi
+#Description: 初始化系统，提供auto_pcdn运行环境
+#===============================================================================
 # 初始化系统，提供auto_pcdn运行环境
 
 echo "$(date "+%Y-%m-%d %H:%M:%S") 执行开始..."
@@ -18,7 +22,7 @@ install_python3_env() {
     echo "$(date "+%Y-%m-%d %H:%M:%S") python3已安装"
 
     echo "$(date "+%Y-%m-%d %H:%M:%S") 开始安装gcc..."
-    sudo yum install -y gcc &> /dev/null
+    sudo yum install -y gcc python3-devel &> /dev/null
     echo "$(date "+%Y-%m-%d %H:%M:%S") gcc已安装"
 
     echo "$(date "+%Y-%m-%d %H:%M:%S") 开始安装python所需的外置库..."
@@ -28,10 +32,10 @@ install_python3_env() {
     echo "$(date "+%Y-%m-%d %H:%M:%S") python所需的外置库已全部安装"
 }
 # 创建服务并运行
-create_ystemd_service() {
+create_systemd_service() {
     script_path="/opt/auto_pcdn/auto_pcdn.py"
     echo "$(date "+%Y-%m-%d %H:%M:%S") 开始创建auto_pcdn.py脚本并写进系统服务运行..."
-    service_content="[Unit]\nDescription=AutoPCDN\nAfter=network.target\n\n[Service]\nExecStart=/usr/bin/python3 $script_path\nRestart=always\nUser=root\nWorkingDirectory=/opt/auto_pcdn\n\n[Install]\nWantedBy=multi-user.target\n"
+    service_content="[Unit]\nDescription=AutoPCDN\nAfter=network.target\n\n[Service]\nExecStart=/usr/bin/python3 $script_path\nRestart=always\nKillMode=process\nUser=root\nWorkingDirectory=/opt/auto_pcdn\n\n[Install]\nWantedBy=multi-user.target\n"
     service_file_path='/etc/systemd/system/auto_pcdn.service'
     echo -e "$service_content" > "$service_file_path"
 
@@ -42,14 +46,14 @@ create_ystemd_service() {
 }
 check_log() {
     log_file="/opt/auto_pcdn/log/auto_pcdn.log"
-    search_string="程序实时日志"
+    search_string="运维监控数据采集"
     timeout=600  # 设置超时时间为600秒
     elapsed_time=0
 
     while [ $elapsed_time -lt $timeout ]; do
         # 检查日志文件中是否包含特定字符
         if grep -q "$search_string" "$log_file"; then
-            sleep 3
+            sleep 10
             echo "$(date "+%Y-%m-%d %H:%M:%S") 执行结束！"
             break
         fi
@@ -67,23 +71,50 @@ status=$(service auto_pcdn status > /dev/null 2>&1 && echo "active" || echo "ina
 if [ "$status" = "active" ]; then
     echo -e "$(date "+%Y-%m-%d %H:%M:%S") 检测到auto_pcdn已经处于Active状态。\n"
     service auto_pcdn status
+#    read -p "是否清除之前的所有部署，重新进行部署？ (y/n) 等待10s后退出: " answer
     echo -e "\n$(date "+%Y-%m-%d %H:%M:%S") 操作已取消。"
     exit 1
 fi
 
+## 检查服务状态
+#status=$(service auto_pcdn status | grep "Active:" | awk '{print $2}')
+#
+#if [ "$status" = "active" ]; then
+#    echo "服务 auto_pcdn 处于 Active 状态。"
+#    read -p "是否继续操作？ (y/n): " answer
+#
+#    # 判断用户输入
+#    if [ "$answer" != "y" ]; then
+#        echo "操作已取消。"
+#        exit 1
+#    fi
+#else
+#    echo "服务 auto_pcdn 不处于 Active 状态，无需进一步操作。"
+#    exit 1
+#fi
+#
+## 在这里添加你需要执行的操作
+## 示例：service auto_pcdn stop
+#
+#echo "操作完成。"
+
 # 校准时间时区
 sudo yum install -y ntpdate &> /dev/null && sudo ntpdate time.windows.com &> /dev/null && sudo timedatectl set-timezone Asia/Shanghai &> /dev/null && sudo hwclock --systohc &> /dev/null
-# 写入machineTag到系统内
-mkdir -p /opt/auto_pcdn/info && echo "@@MACHINETAG@@" > /opt/auto_pcdn/info/machineTag.info
-echo "$(date "+%Y-%m-%d %H:%M:%S") machineTag已写入系统内"
 
 # 下载auto_pcdn脚本程序
-curl -o /opt/auto_pcdn/auto_pcdn.tar.gz -L https://gitee.com/yuanzichaopu/auto_pppoe/releases/download/auto_pcdn_v1.2/auto_pcdn.tar.gz
+mkdir -p /opt/auto_pcdn/
+curl -o /opt/auto_pcdn/auto_pcdn.tar.gz -L https://gitee.com/yuanzichaopu/auto_pppoe/releases/download/auto_pcdn_v1.2/auto_pcdn.tar.gz &> /dev/null
 echo "$(date "+%Y-%m-%d %H:%M:%S") auto_pcdn监管程序下载完成"
+# 解压
 cd /opt/auto_pcdn/
 tar -zxvf  auto_pcdn.tar.gz &> /dev/null
 rm -rf auto_pcdn.tar.gz
-echo "$(date "+%Y-%m-%d %H:%M:%S") 已经将监管程序包解压至/opt/auto_pppoe/目录下"
+rm -rf info/*
+echo "$(date "+%Y-%m-%d %H:%M:%S") 已经将监管程序包解压至/opt/auto_pcdn/目录下"
+
+# 写入machineTag到系统内
+echo "@@MACHINETAG@@" > /opt/auto_pcdn/info/machineTag.info
+echo "$(date "+%Y-%m-%d %H:%M:%S") machineTag已写入系统内"
 
 # 安装yum源插件
 yum install yum-fastestmirror -y &> /dev/null

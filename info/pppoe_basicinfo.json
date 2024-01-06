@@ -1,0 +1,56 @@
+{
+  "sid": "PCDN-JINGZHOU-CU-JKHBHUJH",
+  "timestamp": 1704443104,
+  "status": 1,
+  "province": "湖北",
+  "city": "荆州",
+  "provider": "YWT",
+  "isp": "CMCC",
+  "nat_type": 1,
+  "upstreambandwidth": 500,
+  "linecount": 5,
+  "cpu": 32,
+  "memory": 64,
+  "pppline": {
+    "ppp0": {
+      "status": 1,
+      "ip": "10.1.1.96",
+      "ssh_port": "22",
+      "min_port": "0",
+      "max_port": "0",
+      "max_upbw_mbps": "100",
+      "max_downbw_mbps": "100",
+      "retry_counts": 169
+    },
+    "ppp1": {
+      "status": 1,
+      "ip": "10.1.1.88",
+      "ssh_port": "22",
+      "min_port": "0",
+      "max_port": "0",
+      "max_upbw_mbps": "100",
+      "max_downbw_mbps": "100",
+      "retry_counts": 2
+    },
+    "ppp2": {
+      "status": 1,
+      "ip": "10.1.1.106",
+      "ssh_port": "22",
+      "min_port": "0",
+      "max_port": "0",
+      "max_upbw_mbps": "100",
+      "max_downbw_mbps": "100",
+      "retry_counts": 2
+    },
+    "ppp3": {
+      "status": 1,
+      "ip": "10.1.1.110",
+      "ssh_port": "22",
+      "min_port": "0",
+      "max_port": "0",
+      "max_upbw_mbps": "100",
+      "max_downbw_mbps": "100",
+      "retry_counts": 2
+    }
+  }
+}

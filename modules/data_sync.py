@@ -221,6 +221,7 @@ def check_for_reconnection_and_update_to_crontrol_node():
                 pppoe_dial_up(pppoe_ifname, pppoe_user)
         else:
             type = 40
+            pppoe_user = pppline[pppoe_ifname]['user']
             if check_update_discon_flag(pppoe_ifname):
                 logging.info(f"{pppoe_ifname} 检测到拨号网卡已经重连，已经上报控制节点")
                 # 立即更新路由
@@ -237,7 +238,7 @@ def check_for_reconnection_and_update_to_crontrol_node():
                 # 写入重拨次数到文件，方便后续调用
                 with open(retry_counts_path, 'w', encoding='utf-8') as file:
                     json.dump(retry_counts, file, ensure_ascii=False, indent=2)
-                update_dial_connect_to_control_node(type, node_name, pppoe_ifname)
+                update_dial_connect_to_control_node(type, node_name, pppoe_ifname, pppoe_user)
                 os.remove(f"info/{pppoe_ifname}_discon.flag")
 
 

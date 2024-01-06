@@ -1,7 +1,7 @@
 import requests
 import logging
 
-machineTag = "DSIX3NGF"
+machineTag = "JKHBHUJH"
 
 get_pppoe_basicinfo_api_url = "http://122.191.108.42:9119/orion/expose-api/machine-info/get-config"
 
