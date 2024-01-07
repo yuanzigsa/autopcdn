@@ -208,3 +208,12 @@ def update_routing_table(pppline):
     if len(new_ip_list) != 0:
         logging.info(f"所有新拨号网卡获取到的IP路由已添加！")
 
+# 固定IP的路由添加
+def write_routing_rules(net_line_conf):
+    for line in net_line_conf.keys():
+        ifname = f"{net_line_conf[line]['eth']}.{net_line_conf[line]['vlan']}"
+        table_name = f"{net_line_conf[line]['eth']}.{net_line_conf[line]['vlan']}_table"
+        ipadd = net_line_conf[line]['ip']
+        # 写入路由表
+        add_rules(ifname, table_name, ipadd)
+

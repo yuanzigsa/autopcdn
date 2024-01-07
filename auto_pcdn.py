@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import time
 import threading
@@ -11,8 +12,11 @@ import modules.update_check as update
 import modules.monitor as monitor
 
 
-# Time : 2023/12/08
-# Author : yuan_zi
+##############################################################
+# author：yuanzi
+# Date：Dec. 8th, 2023
+# Version：1.2
+##############################################################
 
 logo = f"""开始启动AutoPCDN程序...\n
      ██               ██                  ███████    ██████  ███████   ████     ██
@@ -150,14 +154,14 @@ def monitor_and_push():
             time.sleep(1)
 
 
-# 节点信息更新检查-线程
+# 节点配置更新检查-线程
 def check_for_control_node_updates():
     while True:
         try:
             update.check_for_updates_and_config()
             time.sleep(600)
         except Exception as e:
-            logging.error(f"节点信息更新检查线程出错，错误信息：{e}, 正在尝试重新启动")
+            logging.error(f"节点配置更新检查线程出错，错误信息：{e}, 正在尝试重新启动")
             time.sleep(1)
 
 
@@ -177,11 +181,11 @@ if __name__ == "__main__":
     logging.info(logo)
     # 从控制节点获取信息
     pppoe_basicinfo = sync.get_pppoe_basicinfo_from_control_node()
-    ppp_line = pppoe_basicinfo['pppline']
+    net_line_conf = pppoe_basicinfo['pppline']
     logging.info("从控制节点获取信息成功！")
     # 在这里需要判断是专线和还是拨号，并声明这个全局变量
-    for ifname in ppp_line:
-        for key in  ppp_line[ifname]:
+    for ifname in net_line_conf:
+        for key in  net_line_conf[ifname]:
             if "user" in key:
                 pcdn_type = "pppoe"
                 break
@@ -191,51 +195,63 @@ if __name__ == "__main__":
     logging.info(f"本机的网络类型为：[{pcdn_type}]")
     if pcdn_type is None:
         logging.info("未知的pcdn类型，在控制平台检查关于本机器的网络配置")
+        sys.exit(1)
 
     # 是否进行初始化
-    if not check_run_flag("env_init"):
+    if check_run_flag("env_init") is False:
         logging.info("====================初始化环境部署====================")
-        init.install_pppoe_runtime_environment(pcdn_type)
+        init.install_pcdn_runtime_environment(pcdn_type)
         set_run_flag("env_init", pcdn_type)
     else:
         logging.info("检测到系统已具备PCDN业务环境")
 
-    # 检查是否已经创建过拨号文件
-    if not check_run_flag("net_conf"):
-        # 开始拨号前的配置  # 需要新增专线的配置
-        logging.info("====================创建拨号配置文件===================")
+    # 配置网络前，检查是否已经创建过网络配置文件
+    if check_run_flag("net_conf") is False:
+        # PPPoE的网络配置
         if pcdn_type == "pppoe":
-            pppline = init.create_pppoe_connection_file_and_routing_tables(ppp_line)
+            logging.info("====================创建拨号配置文件===================")
+            pppline = init.create_pppoe_connection_file_and_routing_tables(net_line_conf)
+            # 开始拨号
+            logging.info("====================开始拨号...=======================")
+            for ifname in pppline.keys():
+                pppoe_user = pppline[ifname]['user']
+                init.pppoe_dial_up(ifname, pppoe_user)
+            time.sleep(3)
+            # 写入路由
+            route.update_routing_table(pppline)
+            # 检测互联网联通性
+            for ifname in pppline.keys():
+                if sync.get_node_status(ifname) == 1:
+                    logging.info(f"{ifname} 已通公网")
+                else:
+                    logging.error(f"{ifname} 未通公网，请使用命令：pppoe-status /etc/sysconfig/network-scripts/ifcfg-{ifname} 查看连接状态,或询问运营商出网是否正常")
+            # 写入首次拨号信息到硬盘，方便后续从云控制平台拉去信息与其对比，判断是否有更新
+            sync.write_to_json_file(pppline, 'pppline.json')
+
+        # 固定IP的网络配置
         if pcdn_type == "static_ip":
-            print(1)
-        set_run_flag("net_conf", pcdn_type)
-        # 开始拨号
-        logging.info("====================开始拨号...=======================")
-        for ifname in pppline.keys():
-            pppoe_user = pppline[ifname]['user']
-            init.pppoe_dial_up(ifname, pppoe_user)
-        time.sleep(3)
-        # 写入路由
-        route.update_routing_table(pppline)
-        # 检测互联网联通性
-        for ifname in pppline.keys():
-            status = sync.get_node_status(ifname)
-            if status == 1:
-                logging.info(f"{ifname} 已通公网")
-            else:
-                logging.error(
-                    f"{ifname} 未通公网，请使用命令：pppoe-status /etc/sysconfig/network-scripts/ifcfg-{ifname} 查看拨号状态,或询问运营商出网是否正常")
-        # 写入首次拨号信息到硬盘，方便后续从云控制平台拉去信息与其对比，判断是否有更新
-        pppline_path = os.path.join(sync.info_path, 'pppline.json')
-        with open(pppline_path, 'w', encoding='utf-8') as file:
-            json.dump(pppline, file, ensure_ascii=False, indent=2)
+            logging.info("====================创建网络配置文件===================")
+            init.create_static_ip_connection_file_and_routing_tables(net_line_conf)
+            # 写入路由
+            route.write_routing_rules(net_line_conf)
+            # 检测互联网连通性
+            for line in net_line_conf.keys():
+                ifname = f"{net_line_conf[line]['eth']}.{net_line_conf[line]['vlan']}"
+                if sync.get_node_status(ifname) == 1:
+                    logging.info(f"{ifname} 已通公网")
+                else:
+                    logging.error(f"{ifname} 未通公网，请使用命令：ifconfig {ifname} 查看连接状态,或询问运营商出网是否正常")
+
+        # 网络配置完成打上标记
         logging.info(success)
+        set_run_flag("net_conf", pcdn_type)
     else:
         logging.info("检测到系统已进行过网络配置，后续会定时从控制节点获取更新")
 
     # 初始化后启动线程持续运行其他后续工作线程
+    # 那其实也就是说，后面如果加入了固定ip的业务，下面某些线程其实是不用启动的
     start_thread(report_node_info_to_control_node_and_customer, '节点信息更新上报')
     start_thread(monitor_dial_connect_and_update, '断线重拨监控上报')
-    start_thread(check_for_control_node_updates, '节点信息更新检查')
+    start_thread(check_for_control_node_updates, '节点配置更新检查')
     start_thread(keep_pppoe_ip_routing_tables_available, '动态策略路由维护')
     start_thread(monitor_and_push, '运维监控数据采集')

@@ -13,6 +13,7 @@ docker run -d --name dyserver \
 -v "/opt/tools/basicinfo:/opt/tools/basicinfo:ro" \
 -v "/home_dy/www/logs/dyserver:/logs"  \
 -v "/opt/tools/dybasicinfo:/opt/tools/dybasicinfo:ro" \
+-v "/opt/tools/redial:/opt/tools/redial:rw" \
 -v "/home_dy/www/coredump/dyserver:/home/www/coredump/dyserver" \
 --net="host" \
 --restart=always  \
@@ -29,6 +30,7 @@ docker run -d --name dyagent \
 -v "/usr/local/ops_scripts_data:/usr/local/ops_scripts_data" \
 -v "/opt/tools/basicinfo:/opt/tools/basicinfo:ro" \
 -v "/opt/tools/dybasicinfo:/opt/tools/dybasicinfo:rw" \
+-v "/opt/tools/redial:/opt/tools/redial:rw" \
 -v "/opt/tools/vmagent:/tmpData:rw" \
 -v "/opt/cruiser-agent:/opt/cruiser-agent:rw" \
 -v "/:/host/root:ro" \

@@ -16,7 +16,7 @@ PCDN环境部署初始化（包含pppoe拨号业务和）
 """
 
 
-def install_pppoe_runtime_environment(type):
+def install_pcdn_runtime_environment(type):
     def check_configure_dns():
         logging.info("开始检测和配置DNS...")
         result = subprocess.run(['grep', '-E', '^nameserver', '/etc/resolv.conf'], stdout=subprocess.PIPE,
@@ -31,7 +31,7 @@ def install_pppoe_runtime_environment(type):
         cmd2 = "sudo systemctl disable NetworkManager"
         subprocess.run(cmd1, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         subprocess.run(cmd2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-        logging.info("已经关闭NetworkManager并禁用开机自启")
+        logging.info("已关闭NetworkManager并禁用开机自启")
 
     def install_package(package_name):
         # 检测是否已经安装yum list installed | grep 包名
@@ -67,33 +67,26 @@ def install_pppoe_runtime_environment(type):
             f"agentAddress udp:{port}",
         ]
         file_path = "/etc/snmp/snmpd.conf"
-
         # 读取现有内容
         with open(file_path, "r") as snmpd_conf:
             existing_content = snmpd_conf.read().splitlines()
-
-        # 创建一个新的列表来存储需要保留的行
+        # 创建一个新列表来存储需要保留的行
         new_content = []
         flag_1 = "rocommunity"
         flag_2 = "agentAddress"
-
         for line in existing_content:
             if flag_1 in line:
                 continue
             if flag_2 in line:
                 continue
-
             # 将未匹配到 flag_1 和 flag_2 的行添加到新的内容中
             new_content.append(line)
-
         # 在 new_content 列表的最前面插入新的配置行
         new_content.insert(0, config_lines[1])
         new_content.insert(0, config_lines[0])
-
         # 将配置写入文件，加在现有内容之前
         with open(file_path, "w") as snmpd_conf:
             snmpd_conf.write("\n".join(new_content) + "\n")
-
         # 重启SNMP服务
         try:
             cmd1 = "sudo systemctl restart snmpd"
@@ -128,13 +121,15 @@ def write_secrets_to_pppoe_config_file(account, secret):
         logging.info("拨号账户密码信息已写入/etc/ppp/chap-secret和/etc/ppp/pap-secrets")
     except Exception as e:
         logging.info(f"向/etc/ppp/chap-secret和/etc/ppp/pap-secrets写入拨号账户密码信息时发生错误：{e}")
-        sys.exit(1)
 
 
 # 创建配置文件，带vlan的不带vlan 后面还要加入专线的
-def create_ifconfig_file(file_type, ifname, vlanid=None, ip=None, pppoe_user=None, macaddr=None, pppoe_number=None):
+def create_ifconfig_file(file_type, ifname, vlanid=None, ip=None, mask=None, gateway=None, pppoe_user=None, macaddr=None, pppoe_number=None):
     if file_type == "ifname-vlan":
-        ifconfig_content = f"TYPE=vlan\nPROXY_METHOD=none\nBROWSER_ONLY=no\nBOOTPROTO=static\nDEFROUTE=yes\nIPV4_FAILURE_FATAL=no\nIPV6INIT=yes\nIPV6_AUTOCONF=yes\nIPV6_DEFROUTE=yes\nIPV6_FAILURE_FATAL=no\nIPV6_ADDR_GEN_MODE=stable-privacy\nNAME={ifname}.{vlanid}\nDEVICE={ifname}.{vlanid}\nVLAN_ID={vlanid}\nVLAN=yes\nONBOOT=yes\nMACADDR={macaddr}\n"
+        if ip is None:
+            ifconfig_content = f"TYPE=vlan\nPROXY_METHOD=none\nBROWSER_ONLY=no\nBOOTPROTO=static\nDEFROUTE=yes\nIPV4_FAILURE_FATAL=no\nIPV6INIT=yes\nIPV6_AUTOCONF=yes\nIPV6_DEFROUTE=yes\nIPV6_FAILURE_FATAL=no\nIPV6_ADDR_GEN_MODE=stable-privacy\nNAME={ifname}.{vlanid}\nDEVICE={ifname}.{vlanid}\nVLAN_ID={vlanid}\nVLAN=yes\nONBOOT=yes\nMACADDR={macaddr}\n"
+        else:
+            ifconfig_content = f"TYPE=vlan\nPROXY_METHOD=none\nBROWSER_ONLY=no\nBOOTPROTO=static\nDEFROUTE=yes\nIPV4_FAILURE_FATAL=no\nIPV6INIT=yes\nIPV6_AUTOCONF=yes\nIPV6_DEFROUTE=yes\nIPV6_FAILURE_FATAL=no\nIPV6_ADDR_GEN_MODE=stable-privacy\nNAME={ifname}.{vlanid}\nDEVICE={ifname}.{vlanid}\nVLAN_ID={vlanid}\nVLAN=yes\nONBOOT=yes\nMACADDR={macaddr}\nIPADDR={ip}\nNETMASK={mask}\nGATEWAY={gateway}\n"
         file_path = f'/etc/sysconfig/network-scripts/ifcfg-{ifname}.{vlanid}'
         # 对于后续更新中无需重建虚拟网卡
         if os.path.exists(file_path):
@@ -145,6 +140,9 @@ def create_ifconfig_file(file_type, ifname, vlanid=None, ip=None, pppoe_user=Non
     elif file_type == "pppoe-no-vlan":
         ifconfig_content = f"USERCTL=yes\nBOOTPROTO=dialup\nNAME=DSL{pppoe_number}\nDEVICE={pppoe_number}\nTYPE=xDSL\nONBOOT=yes\nPIDFILE=/var/run/pppoe-ads{pppoe_number}.pid\nFIREWALL=NONE\nPING=.\nPPPOE_TIMEOUT=80\nLCP_FAILURE=3\nLCP_INTERVAL=20\nCLAMPMSS=1412\nCONNECT_POLL=6\nCONNECT_TIMEOUT=60\nDEFROUTE=no\nSYNCHRONOUS=no\nETH={ifname}\nPROVIDER=DSL{pppoe_number}\nUSER={pppoe_user}\nPEERDNS=no\nDEMAND=no\n"
         file_path = f'/etc/sysconfig/network-scripts/ifcfg-{pppoe_number}'
+    elif file_type == "static-no-vlan":
+        # 需要继续完善专线不带ip的
+        pass
     try:
         if file_path is not None:
             with open(file_path, 'w') as file:
@@ -152,11 +150,10 @@ def create_ifconfig_file(file_type, ifname, vlanid=None, ip=None, pppoe_user=Non
         logging.info(f"{ifname}的{file_type}接口配置文件已创建")
     except Exception as e:
         logging.error(f"{ifname}的{file_type}接口配置文件创建失败，错误信息：{e}")
-        sys.exit(1)
 
 
 # 创建路由表
-def create_routing_tables(table_number, pppoe_ifname):
+def create_routing_tables(table_number, ifname):
     rt_tables_file = "/etc/iproute2/rt_tables"
     # 获取当前路由表优先级编号，用于后续编号去重
     table_numbers_list = []
@@ -173,7 +170,7 @@ def create_routing_tables(table_number, pppoe_ifname):
     while table_number in table_numbers_list:
         table_number += 1
     try:
-        check_string = f"{table_number} {pppoe_ifname}_table"
+        check_string = f"{table_number} {ifname}_table"
         with open(rt_tables_file, 'r') as file:
             if check_string not in file.read():
                 # 如果同名路由表不存在则添加
@@ -273,7 +270,7 @@ def pppoe_dial_up(pppoe_ifname, pppoe_user):
 
 
 # 创建专线ip的网络配置文件以及创建路由表
-def create_static_ip_connection_file_and_routing_tables(ppp_line, pcdn_type):
+def create_static_ip_connection_file_and_routing_tables(net_line_conf):
     # 定义初始路由表编号
     table_number = 50
     # 定义初始mac
@@ -281,38 +278,20 @@ def create_static_ip_connection_file_and_routing_tables(ppp_line, pcdn_type):
     # 创建本机的mac地址表用于后续进行比对
     original_mac_address_list = get_local_mac_address_list()
     # 遍历平台提供的信息并开始写入配置文件
-    for ifname in ppp_line.keys():
-        # 拨号业务
-        if pcdn_type == "pppoe":
-            pppoe_user = ppp_line[ifname]['user']
-            pppoe_pass = ppp_line[ifname]['pass']
-            pppoe_vlan = ppp_line[ifname]['vlan']
-            dial_up_ifnmme = ppp_line[ifname]['eth']
-            write_secrets_to_pppoe_config_file(pppoe_user, pppoe_pass)
-            # 如果接口vlan文件已存在，则不进行创建
-            if pppoe_vlan == "0":
-                logging.info(f"{ifname}没有VLAN")
-                create_ifconfig_file('pppoe-no-vlan', ifname=dial_up_ifnmme, vlanid=pppoe_vlan, pppoe_user=pppoe_user, pppoe_number=ifname)
-                # 创建路由表并通过create_routing_tables的返回值得出新的路由表优先级编号
-                table_number = create_routing_tables(table_number, ifname)
-            else:
-                logging.info(f"{ifname}所属VLAN{pppoe_vlan}")
-                create_ifconfig_file('ifname-vlan', ifname=dial_up_ifnmme, vlanid=pppoe_vlan, pppoe_user=pppoe_user, macaddr=mac_address, pppoe_number=ifname)
-                create_ifconfig_file('pppoe-vlan', ifname=dial_up_ifnmme, vlanid=pppoe_vlan, pppoe_user=pppoe_user, macaddr=mac_address, pppoe_number=ifname)
-                table_number = create_routing_tables(table_number, ifname)
-                # 添加这个mac到已存在列表，避免后续mac与之重复
-                original_mac_address_list.append(mac_address)
-                mac_address = derivation_mac_address(mac_address, original_mac_address_list)  # mac地址后2位尾数按照16进制+1
-                # 开启Vlan子接口
-                cmd = f"ifup {dial_up_ifnmme}.{pppoe_vlan}"
-                subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                logging.info(f"Vlan子接口{dial_up_ifnmme}.{pppoe_vlan}已启用")
-        # 专线业务
-        elif pcdn_type == "static-ip":
-            ip = ppp_line[ifname]['ip']
-            mask = ppp_line[ifname]['mask']
-            gateway = ppp_line[ifname]['gateway']
-            local_ifname = ppp_line[ifname]['eth']
-            vlan = ppp_line[ifname]['vlan']
+    # 专线业务
+    for line in net_line_conf.keys:
+        ip = net_line_conf[line]['ip']
+        mask = net_line_conf[line]['mask']
+        gateway = net_line_conf[line]['gateway']
+        local_ifname = net_line_conf[line]['eth']
+        vlan = net_line_conf[line]['vlan']
+        create_ifconfig_file("ifname-vlan",ifname=local_ifname, vlanid=vlan, ip=ip, mask=mask, gateway=gateway)
+        table_number = create_routing_tables(table_number, f"{local_ifname}.{vlan}")
+        # 添加这个mac到已存在列表，避免后续mac与之重复
+        original_mac_address_list.append(mac_address)
+        mac_address = derivation_mac_address(mac_address, original_mac_address_list)  # mac地址后2位尾数按照16进制+1
+        # 开启Vlan子接口
+        cmd = f"ifup {local_ifname}.{vlan}"
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        logging.info(f"Vlan子接口{local_ifname}.{vlan}已启用")
 
-    return ppp_line

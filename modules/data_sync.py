@@ -147,7 +147,7 @@ def update_dial_connect_to_control_node(type, node_name, pppoe_ifname, pppoe_use
     if type == 30:
         info = f"{node_name}节点机器-{machineTag}：{pppoe_ifname}({pppoe_user})拨号断线"
     if type == 40:
-        info = f"{node_name}节点机器-{machineTag}：{pppoe_ifname}{(pppoe_user)}拨号重连成功"
+        info = f"{node_name}节点机器-{machineTag}：{pppoe_ifname}({pppoe_user})拨号重连成功"
     data = {
         "alarmComment": f"{current_time} {info}",
         "alarmTime": current_time,
