@@ -111,6 +111,7 @@ def install_pcdn_runtime_environment(type):
     configure_snmpd_conf_and_start_the_service()
 
 
+# 写入拨号账号密码到文件
 def write_secrets_to_pppoe_config_file(account, secret):
     secrets_content = f'"{account}"        *       "{secret}"\n'
     paths = ["/etc/ppp/chap-secrets", "/etc/ppp/pap-secrets"]

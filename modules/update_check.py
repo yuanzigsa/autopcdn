@@ -74,3 +74,6 @@ def check_for_updates_and_config():
         logging.info("所有变更拨号账号已建立拨号前的配置文件并写入密码信息")
         # 写入此次拨号信息到硬盘，方便后续从云控制平台拉去信息与其对比，判断是否有更新
         sync.write_to_json_file(pppline_control_node, 'pppline.json')
+
+
+# 节点机器基础信息检查，检查是否有更新，检查到更新写入本地

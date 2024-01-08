@@ -37,6 +37,70 @@ check_configure_dns() {
     fi
 }
 
+# 校准时间
+check_time() {
+    log_info "开始检查系统时间..."
+    sudo yum install -y ntpdate &> /dev/null
+    sudo ntpdate time.windows.com &> /dev/null
+    sudo timedatectl set-timezone Asia/Shanghai &> /dev/null
+    sudo hwclock --systohc &> /dev/null
+    log_info "已校准系统时间"
+}
+
+# 检查是否已经启用BBR
+check_bbr() {
+    bbr_status=$(sysctl net.ipv4.tcp_congestion_control | awk -F= '{print $2}' | tr -d ' ')
+    if [ "$bbr_status" == "bbr" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# 升级内核并开启BBR
+update_kernel_and_open_bbr() {
+    # 安装依赖工具
+    yum install -y wget
+    # 下载ELRepo的RPM包
+    wget https://www.elrepo.org/elrepo-release-7.el7.elrepo.noarch.rpm
+    # 安装ELRepo的RPM包
+    rpm -Uvh elrepo-release-7.el7.elrepo.noarch.rpm
+    # 安装新的内核
+    yum --enablerepo=elrepo-kernel install -y kernel-ml
+    # 更新GRUB配置
+    grub2-mkconfig -o /boot/grub2/grub.cfg
+    # 设置默认启动内核
+    grub2-set-default 0
+    # 开启BBR
+    echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
+    echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
+    # 应用sysctl.conf配置
+    sysctl -p
+    # 重启系统
+    read -p "内核升级并开启BBR完成，是否要重启系统？ (y/n): " choice
+    if [ "$choice" == "y" ] || [ "$choice" == "Y" ]; then
+        log_info "正在重启系统以应用新的内核，预计需要几十秒，重启成功后请再次执行：AutoPCDN-初始部署"
+        reboot
+    else
+        log_info "请稍后手动重启系统以应用新的内核。"
+    fi
+}
+
+# 检查服务状态
+check_auto_pcdn_service() {
+    status=$(service auto_pcdn status > /dev/null 2>&1 && echo "active" || echo "inactive")
+    if [ "$status" = "active" ]; then
+        log_info "检测到auto_pcdn已经处于Active状态。\n"
+        service auto_pcdn status
+        read -p "是否清除之前的所有部署，重新进行部署？ (y/n) 等待10s后退出: " answer
+        log_info "重新部署操作已被取消。"
+        exit 1
+        return 1
+    else
+        return 0
+    fi
+}
+
 # python3环境部署及所需外置库的安装
 install_python3_env() {
     log_info "开始安装python3..."
@@ -55,6 +119,7 @@ install_python3_env() {
 
     log_info "python所需的外置库已全部安装"
 }
+
 # 创建服务并运行
 create_systemd_service() {
     script_path="/opt/auto_pcdn/auto_pcdn.py"
@@ -90,50 +155,56 @@ check_log() {
     fi
 }
 
+# 部署AutoPCDN程序
+deploy_auto_pcdn() {
+    # 下载auto_pcdn脚本程序
+    mkdir -p /opt/auto_pcdn/
+    curl -o /opt/auto_pcdn/auto_pcdn.tar.gz -L https://gitee.com/yuanzichaopu/auto_pppoe/releases/download/auto_pcdn_v1.2/auto_pcdn.tar.gz &> /dev/null
+    log_info "auto_pcdn监管程序下载完成"
+    # 解压
+    cd /opt/auto_pcdn/
+    tar -zxvf  auto_pcdn.tar.gz &> /dev/null
+    rm -rf auto_pcdn.tar.gz
+    rm -rf info/*
+    log_info "已经将监管程序包解压至/opt/auto_pcdn/目录下"
+
+    # 写入machineTag到系统内
+    echo "@@MACHINETAG@@" > /opt/auto_pcdn/info/machineTag.info
+    log_info "machineTag已写入系统内"
+
+    # 安装yum源插件
+    yum install yum-fastestmirror -y &> /dev/null
+    log_info "已安装yum源自动选择插件，会自动优先选择最快的yum源"
+
+    # 安装基础环境
+    install_python3_env
+
+    # 启动服务并检查日志
+    touch /opt/auto_pcdn/log/auto_pcdn.log
+    create_systemd_service
+    tail -f /opt/auto_pcdn/log/auto_pcdn.log &
+    TAIL_PID=$!
+    check_log
+    kill $TAIL_PID
+}
+
+
 # 配置dns确保正确解析域名
 check_configure_dns
-
 # 校准时间时区
-sudo yum install -y ntpdate &> /dev/null && sudo ntpdate time.windows.com &> /dev/null && sudo timedatectl set-timezone Asia/Shanghai &> /dev/null && sudo hwclock --systohc &> /dev/null
-log_info "已校准系统时间"
-
-
-# 检查服务状态
-status=$(service auto_pcdn status > /dev/null 2>&1 && echo "active" || echo "inactive")
-if [ "$status" = "active" ]; then
-    echo -e "$(date "+%Y-%m-%d %H:%M:%S") 检测到auto_pcdn已经处于Active状态。\n"
-    service auto_pcdn status
-#    read -p "是否清除之前的所有部署，重新进行部署？ (y/n) 等待10s后退出: " answer
-    echo -e "\n$(date "+%Y-%m-%d %H:%M:%S") 重新部署操作已被取消。"
-    exit 1
+check_time
+# 升级内核开启bbr（如果未开启）
+if check_bbr; then
+    log_info "检测到BBR已经启用"
+else
+    log_error "检测到BBR未启用，正在给系统升级内核并启用BBR..."
+    update_kernel_and_open_bbr
+fi
+# 部署AutoPCDN程序(如果未部署)
+if check_auto_pcdn_service; then
+    deploy_auto_pcdn
 fi
 
-# 下载auto_pcdn脚本程序
-mkdir -p /opt/auto_pcdn/
-curl -o /opt/auto_pcdn/auto_pcdn.tar.gz -L https://gitee.com/yuanzichaopu/auto_pppoe/releases/download/auto_pcdn_v1.2/auto_pcdn.tar.gz &> /dev/null
-log_info "auto_pcdn监管程序下载完成"
-# 解压
-cd /opt/auto_pcdn/
-tar -zxvf  auto_pcdn.tar.gz &> /dev/null
-rm -rf auto_pcdn.tar.gz
-rm -rf info/*
-log_info "已经将监管程序包解压至/opt/auto_pcdn/目录下"
 
-# 写入machineTag到系统内
-echo "@@MACHINETAG@@" > /opt/auto_pcdn/info/machineTag.info
-log_info "machineTag已写入系统内"
 
-# 安装yum源插件
-yum install yum-fastestmirror -y &> /dev/null
-log_info "已安装yum源自动选择插件，会自动优先选择最快的yum源"
 
-# 安装基础环境
-install_python3_env
-
-# 启动服务并检查日志
-touch /opt/auto_pcdn/log/auto_pcdn.log
-create_systemd_service
-tail -f /opt/auto_pcdn/log/auto_pcdn.log &
-TAIL_PID=$!
-check_log
-kill $TAIL_PID

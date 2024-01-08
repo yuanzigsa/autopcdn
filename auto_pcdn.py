@@ -67,6 +67,12 @@ def check_run_flag(check_type):
     if check_type == "net_conf":
         return os.path.exists('info/net_conf.flag')
 
+# 专线ip是否带vlan
+def static_ip_with_vlan(net_line_conf):
+    if net_line_conf["ip1"]['vlan'] != 0:
+        return True
+    else:
+        return False
 
 # 动态策略路由维护-线程
 def keep_pppoe_ip_routing_tables_available():
@@ -104,10 +110,9 @@ def monitor_dial_connect_and_update():
 # 节点信息更新上报线程-线程
 def report_node_info_to_control_node_and_customer():
     def_interval = 20
-    pppoe_basicinfo = sync.get_pppoe_basicinfo_from_control_node()
-    if pppoe_basicinfo["reported"] == 1:
-        def_interval = pppoe_basicinfo["reportInterval"]
-        target_file_path = pppoe_basicinfo["reportLocalPath"]
+    if pcdn_basicinfo["reported"] == 1:
+        def_interval = pcdn_basicinfo["reportInterval"]
+        target_file_path = pcdn_basicinfo["reportLocalPath"]
         target_directory = os.path.dirname(target_file_path)
         if not os.path.exists(target_directory):
             os.makedirs(target_directory)
@@ -116,7 +121,7 @@ def report_node_info_to_control_node_and_customer():
             # 记录函数开始执行的时间
             start_time = time.time()
             # 启动
-            sync.collect_node_spacific_info_update_to_control_node_or_customers()
+            sync.collect_node_spacific_info_update_to_control_node_or_customers(pcdn_basicinfo["reported"], target_directory, pcdn_basicinfo, pcdn_type)
             # 计算实际执行时间
             execution_time = time.time() - start_time
             # 确保推送间隔
@@ -180,9 +185,12 @@ if __name__ == "__main__":
     # 启动logo
     logging.info(logo)
     # 从控制节点获取信息
-    pppoe_basicinfo = sync.get_pppoe_basicinfo_from_control_node()
-    net_line_conf = pppoe_basicinfo['pppline']
+    pcdn_basicinfo = sync.get_pppoe_basicinfo_from_control_node()
+    net_line_conf = pcdn_basicinfo['pppline']
     logging.info("从控制节点获取信息成功！")
+    if net_line_conf is None:
+        logging.error("从控制节点获取的网络配置信息为空，请在控制平台检查关于本机器的网络配置！")
+        sys.exit(1)
     # 在这里需要判断是专线和还是拨号，并声明这个全局变量
     for ifname in net_line_conf:
         for key in  net_line_conf[ifname]:
@@ -194,7 +202,7 @@ if __name__ == "__main__":
                 break
     logging.info(f"本机的网络类型为：[{pcdn_type}]")
     if pcdn_type is None:
-        logging.info("未知的pcdn类型，在控制平台检查关于本机器的网络配置")
+        logging.info("未知的pcdn类型，在控制平台检查关于本机器的网络配置！")
         sys.exit(1)
 
     # 是否进行初始化
@@ -231,17 +239,20 @@ if __name__ == "__main__":
         # 固定IP的网络配置
         if pcdn_type == "static_ip":
             logging.info("====================创建网络配置文件===================")
-            init.create_static_ip_connection_file_and_routing_tables(net_line_conf)
-            # 写入路由
-            route.write_routing_rules(net_line_conf)
-            # 检测互联网连通性
-            for line in net_line_conf.keys():
-                ifname = f"{net_line_conf[line]['eth']}.{net_line_conf[line]['vlan']}"
-                if sync.get_node_status(ifname) == 1:
-                    logging.info(f"{ifname} 已通公网")
-                else:
-                    logging.error(f"{ifname} 未通公网，请使用命令：ifconfig {ifname} 查看连接状态,或询问运营商出网是否正常")
-
+            if static_ip_with_vlan(net_line_conf) is True:
+                init.create_static_ip_connection_file_and_routing_tables(net_line_conf)
+                # 写入路由
+                route.write_routing_rules(net_line_conf)
+                # 检测互联网连通性
+                for line in net_line_conf.keys():
+                    ifname = f"{net_line_conf[line]['eth']}.{net_line_conf[line]['vlan']}"
+                    if sync.get_node_status(ifname) == 1:
+                        logging.info(f"{ifname} 已通公网")
+                    else:
+                        logging.error(f"{ifname} 未通公网，请使用命令：ifconfig {ifname} 查看连接状态,或询问运营商出网是否正常")
+                sync.write_to_json_file(net_line_conf, 'net_conf.json')
+            else:
+                logging.info("检测到本机为不带vlan的专线IP网络，无需进行网络配置")
         # 网络配置完成打上标记
         logging.info(success)
         set_run_flag("net_conf", pcdn_type)
@@ -250,8 +261,15 @@ if __name__ == "__main__":
 
     # 初始化后启动线程持续运行其他后续工作线程
     # 那其实也就是说，后面如果加入了固定ip的业务，下面某些线程其实是不用启动的
-    start_thread(report_node_info_to_control_node_and_customer, '节点信息更新上报')
-    start_thread(monitor_dial_connect_and_update, '断线重拨监控上报')
+    if pcdn_type == "pppoe":
+        start_thread(monitor_dial_connect_and_update, '断线重拨监控上报')
+        start_thread(keep_pppoe_ip_routing_tables_available, '动态策略路由维护')
     start_thread(check_for_control_node_updates, '节点配置更新检查')
-    start_thread(keep_pppoe_ip_routing_tables_available, '动态策略路由维护')
+    start_thread(report_node_info_to_control_node_and_customer, '节点信息更新上报')
     start_thread(monitor_and_push, '运维监控数据采集')
+
+    # start_thread(report_node_info_to_control_node_and_customer, '节点信息更新上报')
+    # start_thread(monitor_dial_connect_and_update, '断线重拨监控上报')
+    # start_thread(check_for_control_node_updates, '节点配置更新检查')
+    # start_thread(keep_pppoe_ip_routing_tables_available, '动态策略路由维护')
+    # start_thread(monitor_and_push, '运维监控数据采集')

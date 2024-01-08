@@ -243,71 +243,97 @@ def check_for_reconnection_and_update_to_crontrol_node():
 
 
 # 节点具体信息上报到控制节点
-def collect_node_spacific_info_update_to_control_node_or_customers():
-    def create_local_pppline_empty_dict(pppoe_basicinfo):
-        pppline = pppoe_basicinfo['pppline']
-        # 创建本地字典pppline
-        pppline_local = {}
-        for pppoe_ifname in pppline.keys():
-            # pppline_local
-            pppline_local[pppoe_ifname] = {}
-            pppline_local[pppoe_ifname]['status'] = ''
-            pppline_local[pppoe_ifname]['ip'] = ''
-            pppline_local[pppoe_ifname]['ssh_port'] = '22'
-            pppline_local[pppoe_ifname]['min_port'] = '0'
-            pppline_local[pppoe_ifname]['max_port'] = '0'
-            pppline_local[pppoe_ifname]['max_upbw_mbps'] = pppline[pppoe_ifname]['bandwidth']
-            pppline_local[pppoe_ifname]['max_downbw_mbps'] = pppline[pppoe_ifname]['bandwidth']
-        return pppline_local
+def collect_node_spacific_info_update_to_control_node_or_customers(report_on, reportLocalPath, pcdn_basicinfo, pcdn_type):
+    def create_local_netline_info(pcdn_basicinfo):
+        netline = pcdn_basicinfo['pppline']
+        # 创建本地字典netline
+        netline_local = {}
+        for pppoe_ifname in netline.keys():
+            # netline_local
+            netline_local[pppoe_ifname] = {}
+            netline_local[pppoe_ifname]['status'] = ''
+            if pcdn_type != 'static_ip':
+                netline_local[pppoe_ifname]['ip'] = ''
+            else:
+                netline_local[pppoe_ifname]['ip'] = netline[pppoe_ifname]['ip']
+            netline_local[pppoe_ifname]['ssh_port'] = '22'
+            netline_local[pppoe_ifname]['min_port'] = '0'
+            netline_local[pppoe_ifname]['max_port'] = '0'
+            netline_local[pppoe_ifname]['max_upbw_mbps'] = netline[pppoe_ifname]['bandwidth']
+            netline_local[pppoe_ifname]['max_downbw_mbps'] = netline[pppoe_ifname]['bandwidth']
+        return netline_local
 
-    pppoe_basicinfo = get_pppoe_basicinfo_from_control_node()
-    node_name = pppoe_basicinfo["city"]
-    report_on = pppoe_basicinfo["reported"]
-    pppline_local = create_local_pppline_empty_dict(pppoe_basicinfo)
+    # 创建上报客户的必要节点更新信息
+    def create_pcdn_basicinfo_for_customers():
+        pcdn_basicinfo_for_customers = {}
+        pcdn_basicinfo_for_customers['sid'] = pcdn_basicinfo['name']
+        pcdn_basicinfo_for_customers['timestamp'] = int(time.time())
+        for pppoe_ifname in netline_local.keys():
+            pcdn_basicinfo_for_customers['status'] = get_node_status(pppoe_ifname)
+        pcdn_basicinfo_for_customers['province'] = pcdn_basicinfo['province']
+        pcdn_basicinfo_for_customers['city'] = node_name
+        pcdn_basicinfo_for_customers['provider'] = pcdn_basicinfo['provider']
+        pcdn_basicinfo_for_customers['isp'] = pcdn_basicinfo['isp']
+        pcdn_basicinfo_for_customers['nat_type'] = pcdn_basicinfo['authType']
+        pcdn_basicinfo_for_customers['upstreambandwidth'] = pcdn_basicinfo['upstreambandwidth']
+        pcdn_basicinfo_for_customers['linecount'] = pcdn_basicinfo['linecount']
+        pcdn_basicinfo_for_customers['cpu'] = pcdn_basicinfo['cpu']
+        pcdn_basicinfo_for_customers['memory'] = pcdn_basicinfo['memory']
+        pcdn_basicinfo_for_customers['pppline'] = {}
+        pcdn_basicinfo_for_customers['pppline'] = netline_local
+        return pcdn_basicinfo_for_customers
+
+
+    # 从本地文件获取信息，避免频繁请求控制节点
+    pcdn_basicinfo_path = os.path.join(info_path, 'pcdn_basicinfo.json')
+    if os.path.exists(pcdn_basicinfo_path):
+        read_from_json_file("pcdn_basicinfo.json")
+
+    # 读取节点基础信息
+    node_name = pcdn_basicinfo["city"]
+    netline_local = create_local_netline_info(pcdn_basicinfo)
     node_status = 0  # 默认节点不可用
-    # 读取拨号网卡的重拨次数
-    retry_counts_path = os.path.join(info_path, 'retry_counts.json')
-    with open(retry_counts_path, 'r', encoding='utf-8') as file:
-        retry_counts = json.load(file)
-    for pppoe_ifname in pppline_local.keys():
-        status = get_node_status(pppoe_ifname)
-        if status == 1:
-            node_status = 1  # 但凡有一个接口能通公网，证明节点可用..
-        # 创建上报控制节点必要更新信息
-        pppline_local[pppoe_ifname]['retry_counts'] = retry_counts[pppoe_ifname]
-        pppline_local[pppoe_ifname]["status"] = status
-        pppline_local[pppoe_ifname]["ip"] = get_local_pppoe_ip(f'{pppoe_ifname}')
 
-    # 上报平台
-    # update_pppline_to_control_node(node_status, '已经将最新线路信息推送至客户')
+    if pcdn_type == "pppoe":
+        # 读取拨号网卡的重拨次数
+        retry_counts = read_from_json_file("retry_counts.json")
+        for pppoe_ifname in netline_local.keys():
+            if netline_local[pppoe_ifname]['disabled'] == 0:
+                status = get_node_status(pppoe_ifname)
+                if status == 1:
+                    # 但凡有一个接口能通公网且没有被控制节点禁用，证明节点可用..
+                    node_status = 1
+                    break
+                else:
+                    node_status = 0
+            # 创建上报控制节点必要更新信息
+            netline_local[pppoe_ifname]['retry_counts'] = retry_counts[pppoe_ifname]
+            netline_local[pppoe_ifname]["status"] = status
+            netline_local[pppoe_ifname]["ip"] = get_local_pppoe_ip(f'{pppoe_ifname}')
+
+    if pcdn_type == "static_ip":
+        for line in  netline_local.keys():
+            if netline_local[line]['disabled']  == 0:
+                ifname =  netline_local[line]['eth']
+                status = get_node_status(ifname)
+                if status == 1:
+                    node_status = 1
+                else:
+                    node_status = 0
+
+
     # 是否上报客户
     if report_on == 1:
-        # 上报路径
-        reportLocalPath = pppoe_basicinfo["reportLocalPath"]
         # 创建上报客户的必要节点更新信息
-        pppoe_basicinfo_for_customers = {}
-        pppoe_basicinfo_for_customers['sid'] = pppoe_basicinfo['name']
-        pppoe_basicinfo_for_customers['timestamp'] = int(time.time())
-        for pppoe_ifname in pppline_local.keys():
-            pppoe_basicinfo_for_customers['status'] = get_node_status(pppoe_ifname)
-        pppoe_basicinfo_for_customers['province'] = pppoe_basicinfo['province']
-        pppoe_basicinfo_for_customers['city'] = node_name
-        pppoe_basicinfo_for_customers['provider'] = pppoe_basicinfo['provider']
-        pppoe_basicinfo_for_customers['isp'] = pppoe_basicinfo['isp']
-        pppoe_basicinfo_for_customers['nat_type'] = pppoe_basicinfo['authType']
-        pppoe_basicinfo_for_customers['upstreambandwidth'] = pppoe_basicinfo['upstreambandwidth']
-        pppoe_basicinfo_for_customers['linecount'] = pppoe_basicinfo['linecount']
-        pppoe_basicinfo_for_customers['cpu'] = pppoe_basicinfo['cpu']
-        pppoe_basicinfo_for_customers['memory'] = pppoe_basicinfo['memory']
-        pppoe_basicinfo_for_customers['pppline'] = {}
-        pppoe_basicinfo_for_customers['pppline'] = pppline_local
+        pcdn_basicinfo_for_customers = create_pcdn_basicinfo_for_customers()
+
         # 上报给客户
         with open(reportLocalPath, 'w', encoding='utf-8') as file:
-            json.dump(pppoe_basicinfo_for_customers, file, ensure_ascii=False, indent=2)
+            json.dump(pcdn_basicinfo_for_customers, file, ensure_ascii=False, indent=2)
         logging.info("已经向客户更新推送了最新的拨号状态信息")
         # 告诉平台已经上报了客户
-        update_local_operate_to_control_node(node_status, '已经将最新线路信息推送至客户','线路信息上报至客户')
+        update_local_operate_to_control_node(node_status, '已经将最新线路信息推送至客户', '线路信息上报至客户')
     # 存储一份到本地
-    pppoe_basicinfo_path = os.path.join(info_path, 'pppoe_basicinfo.json')
-    with open(pppoe_basicinfo_path, 'w', encoding='utf-8') as file:
-        json.dump(pppoe_basicinfo_for_customers, file, ensure_ascii=False, indent=2)
+    write_to_json_file(pcdn_basicinfo_for_customers, "pcdn_basicinfo.json")
+
+
