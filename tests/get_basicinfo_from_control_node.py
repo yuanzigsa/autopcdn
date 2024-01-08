@@ -3,7 +3,7 @@ import logging
 
 machineTag = "VTCXNZLT"
 
-get_pppoe_basicinfo_api_url = "http://122.191.108.42:9119/orion/expose-api/machine-info/get-config"
+get_pppoe_basicinfo_api_url = "http://120.26.111.213:9119/orion/expose-api/machine-info/get-config"
 
 question_headers = {
     "O-Login-Token": "accessToken",

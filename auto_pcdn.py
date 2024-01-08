@@ -96,8 +96,7 @@ def monitor_dial_connect_and_update():
     if os.path.exists(retry_counts_path) is False:
         for ifname in pppoe_basicinfo['pppline'].keys():
             retry_counts[ifname] = 0
-        with open(retry_counts_path, 'w', encoding='utf-8') as file:
-            json.dump(retry_counts, file, ensure_ascii=False, indent=2)
+        sync.write_to_json_file("retry_counts.json")
     while True:
         try:
             sync.check_for_reconnection_and_update_to_crontrol_node()
@@ -109,27 +108,29 @@ def monitor_dial_connect_and_update():
 
 # 节点信息更新上报线程-线程
 def report_node_info_to_control_node_and_customer():
-    def_interval = 20
     if pcdn_basicinfo["reported"] == 1:
         def_interval = pcdn_basicinfo["reportInterval"]
         target_file_path = pcdn_basicinfo["reportLocalPath"]
         target_directory = os.path.dirname(target_file_path)
-        if not os.path.exists(target_directory):
+        if os.path.exists(target_directory) is False:
             os.makedirs(target_directory)
-    while True:
-        try:
-            # 记录函数开始执行的时间
-            start_time = time.time()
-            # 启动
-            sync.collect_node_spacific_info_update_to_control_node_or_customers(pcdn_basicinfo["reported"], target_directory, pcdn_basicinfo, pcdn_type)
-            # 计算实际执行时间
-            execution_time = time.time() - start_time
-            # 确保推送间隔
-            next_interval = max(def_interval - execution_time, 1)
-            time.sleep(next_interval)
-        except Exception as e:
-            logging.error(f"节点信息更新上报线程出错，错误信息：{e}, 正在尝试重新启动")
-            time.sleep(1)
+        while True:
+            try:
+                # 记录函数开始执行的时间
+                start_time = time.time()
+                # 启动
+                sync.collect_node_spacific_info_update_to_control_node_or_customers(pcdn_basicinfo["reported"], pcdn_basicinfo["reportLocalPath"], pcdn_basicinfo, pcdn_type)
+                # 计算实际执行时间
+                execution_time = time.time() - start_time
+                # 确保推送间隔
+                next_interval = max(def_interval - execution_time, 1)
+                time.sleep(next_interval)
+            except Exception as e:
+                logging.error(f"节点信息更新上报线程出错，错误信息：{e}, 正在尝试重新启动")
+                time.sleep(1)
+    else:
+        logging.info("节点信息无需更新上报到客户，已停止节点信息更新上报线程")
+        pass
 
 
 # 运维监控数据采集上报——线程
@@ -148,7 +149,7 @@ def monitor_and_push():
             # 记录函数开始执行的时间
             start_time = time.time()
             # 启动
-            monitor.network_and_hardware_monitor()
+            monitor.network_and_hardware_monitor(pcdn_type)
             # 计算实际执行时间
             execution_time = time.time() - start_time
             # 确保推送间隔
@@ -253,6 +254,8 @@ if __name__ == "__main__":
                 sync.write_to_json_file(net_line_conf, 'net_conf.json')
             else:
                 logging.info("检测到本机为不带vlan的专线IP网络，无需进行网络配置")
+            # 写入网络配置信息到硬盘，方便后续从云控制平台拉去信息与其对比，判断是否有更新
+            sync.write_to_json_file(net_line_conf, 'pppline.json')
         # 网络配置完成打上标记
         logging.info(success)
         set_run_flag("net_conf", pcdn_type)
