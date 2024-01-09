@@ -28,7 +28,6 @@ console_formatter = ColoredFormatter(
     "%(log_color)s%(asctime)s - %(levelname)s - %(message)s",
     datefmt='%Y-%m-%d %H:%M:%S',
     log_colors={
-        'INFO': 'green',
         'ERROR': 'red',
         'WARNING': 'yellow',
         'CRITICAL': 'bold_red',
