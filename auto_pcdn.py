@@ -218,6 +218,8 @@ if __name__ == "__main__":
     # 是否进行初始化
     if check_run_flag("env_init") is False:
         logging.info("====================初始化环境部署====================")
+        hostname = pcdn_basicinfo['name']
+        init.modify_hostname(hostname)
         init.install_pcdn_runtime_environment(pcdn_type)
         set_run_flag("env_init", pcdn_type)
     else:

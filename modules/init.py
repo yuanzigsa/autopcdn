@@ -111,6 +111,20 @@ def install_pcdn_runtime_environment(type):
     configure_snmpd_conf_and_start_the_service()
 
 
+# 修改主机名
+def modify_hostname(hostname):
+    paths = ["/etc/hostname"]
+    cmd = f"hostname {hostname}"
+    subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    try:
+        for path in paths:
+            with open(path, "a") as secrets_file:
+                secrets_file.write(hostname)
+        logging.info("主机名已完成修改")
+    except Exception as e:
+        logging.info(f"修改主机名时发生错误：{e}")
+
+
 # 写入拨号账号密码到文件
 def write_secrets_to_pppoe_config_file(account, secret):
     secrets_content = f'"{account}"        *       "{secret}"\n'

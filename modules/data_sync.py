@@ -274,7 +274,7 @@ def collect_node_spacific_info_update_to_control_node_or_customers(report_on, re
         pcdn_basicinfo_for_customers['city'] = pcdn_basicinfo["city"]
         pcdn_basicinfo_for_customers['provider'] = pcdn_basicinfo['provider']
         pcdn_basicinfo_for_customers['isp'] = pcdn_basicinfo['isp']
-        pcdn_basicinfo_for_customers['nat_type'] = pcdn_basicinfo['authType']
+        pcdn_basicinfo_for_customers['nat_type'] = pcdn_basicinfo['natType']
         pcdn_basicinfo_for_customers['upstreambandwidth'] = pcdn_basicinfo['upstreambandwidth']
         pcdn_basicinfo_for_customers['linecount'] = pcdn_basicinfo['linecount']
         pcdn_basicinfo_for_customers['cpu'] = pcdn_basicinfo['cpu']

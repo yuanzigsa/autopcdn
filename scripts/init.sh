@@ -60,13 +60,17 @@ check_bbr() {
 # 升级内核并开启BBR
 update_kernel_and_open_bbr() {
     # 安装依赖工具
-    yum install -y wget
+    yum install -y wget &> /dev/null
+    log_info "已安装wget"
     # 下载ELRepo的RPM包
-    wget https://www.elrepo.org/elrepo-release-7.el7.elrepo.noarch.rpm
+    wget https://www.elrepo.org/elrepo-release-7.el7.elrepo.noarch.rpm &> /dev/null
+    lgo_info "已下载ELRepo的RPM包"
     # 安装ELRepo的RPM包
-    rpm -Uvh elrepo-release-7.el7.elrepo.noarch.rpm
+    rpm -Uvh elrepo-release-7.el7.elrepo.noarch.rpm &> /dev/null
+    log_info "已安装ELRepo"
     # 安装新的内核
-    yum --enablerepo=elrepo-kernel install -y kernel-ml
+    yum --enablerepo=elrepo-kernel install -y kernel-ml &> /dev/null
+    log_info "已安装新的内核"
     # 更新GRUB配置
     grub2-mkconfig -o /boot/grub2/grub.cfg
     # 设置默认启动内核
@@ -74,16 +78,19 @@ update_kernel_and_open_bbr() {
     # 开启BBR
     echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
     echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
+    log_info "已开启BBR"
     # 应用sysctl.conf配置
     sysctl -p
     # 重启系统
-    read -p "内核升级并开启BBR完成，是否要重启系统？ (y/n): " choice
-    if [ "$choice" == "y" ] || [ "$choice" == "Y" ]; then
-        log_info "正在重启系统以应用新的内核，预计需要几十秒，重启成功后请再次执行：AutoPCDN-初始部署"
-        reboot
-    else
-        log_info "请稍后手动重启系统以应用新的内核。"
-    fi
+    log_info "正在重启系统以应用新的内核并使BBR生效，预计需要几十秒，重启成功后请再次执行：AutoPCDN-初始部署"
+    reboot
+#    read -p "内核升级并开启BBR完成，是否要重启系统？ (y/n): " choice
+#    if [ "$choice" == "y" ] || [ "$choice" == "Y" ]; then
+#        log_info "正在重启系统以应用新的内核，预计需要几十秒，重启成功后请再次执行：AutoPCDN-初始部署"
+#        reboot
+#    else
+#        log_info "请稍后手动重启系统以应用新的内核。"
+#    fi
 }
 
 # 检查服务状态
@@ -91,7 +98,7 @@ check_auto_pcdn_service() {
     status=$(service auto_pcdn status > /dev/null 2>&1 && echo "active" || echo "inactive")
     if [ "$status" = "active" ]; then
         log_info "检测到auto_pcdn已经处于Active状态。\n"
-        service auto_pcdn status
+        service auto_pcdn status -l
         read -p "是否清除之前的所有部署，重新进行部署？ (y/n) 等待10s后退出: " answer
         log_info "重新部署操作已被取消。"
         exit 1
@@ -116,7 +123,6 @@ install_python3_env() {
     pip3 install pysnmp -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com &> /dev/null
     pip3 install psutil -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com &> /dev/null
     pip3 install colorlog -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com &> /dev/null
-
     log_info "python所需的外置库已全部安装"
 }
 
@@ -204,7 +210,3 @@ fi
 if check_auto_pcdn_service; then
     deploy_auto_pcdn
 fi
-
-
-
-
