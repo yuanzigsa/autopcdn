@@ -259,8 +259,8 @@ def collect_node_spacific_info_update_to_control_node_or_customers(report_on, re
             netline_local[line]['ssh_port'] = '22'
             netline_local[line]['min_port'] = 0
             netline_local[line]['max_port'] = 0
-            netline_local[line]['max_upbw_mbps'] = int(netline[line]['bandwidth'])
-            netline_local[line]['max_downbw_mbps'] = int(netline[line]['bandwidth'])
+            netline_local[line]['max_upbw_mbps'] = int(pcdn_basicinfo['upstreambandwidth'])
+            netline_local[line]['max_downbw_mbps'] = int(pcdn_basicinfo['upstreambandwidth'])
             netline_local[line]['disabled'] = netline[line]['disabled']
         return netline_local
 
