@@ -1,6 +1,5 @@
 import os
 import sys
-import json
 import time
 import threading
 from datetime import datetime
@@ -68,7 +67,7 @@ def check_run_flag(check_type):
         return os.path.exists('info/net_conf.flag')
 
 # 专线ip是否带vlan
-def static_ip_with_vlan(net_line_conf):
+def check_static_type(net_line_conf):
     for ifname in net_line_conf:
         for key in  net_line_conf[ifname]:
             if "vlan" in key:
@@ -135,7 +134,7 @@ def report_node_info_to_control_node_and_customer():
                 # 记录函数开始执行的时间
                 start_time = time.time()
                 # 启动
-                sync.collect_node_spacific_info_update_to_control_node_or_customers(pcdn_basicinfo["reported"], target_file_path, pcdn_basicinfo, pcdn_type)
+                sync.collect_node_spacific_info_update_to_control_node_or_customers(pcdn_basicinfo["reported"], target_file_path, pcdn_basicinfo, pcdn_type, static_with_vlan)
                 # 计算实际执行时间
                 execution_time = time.time() - start_time
                 # 确保推送间隔
@@ -210,9 +209,14 @@ if __name__ == "__main__":
        sys.exit(1)
     # 获取pcdn类型
     pcdn_type = check_pcdn_type(net_line_conf)
+    # 判断专线ip是带vlan还是不带
+    static_with_vlan = check_static_type(net_line_conf)
     logging.info(f"本机的网络类型为：[{pcdn_type}]")
     if pcdn_type is None:
         logging.info("未知的pcdn类型，在控制平台检查关于本机器的网络配置！")
+        sys.exit(1)
+    if static_with_vlan is None:
+        logging.info("未知的静态ip类型，是带VLAN还是不带VLAN？在控制平台检查关于本机器的网络配置！")
         sys.exit(1)
 
     # 是否进行初始化
@@ -251,7 +255,7 @@ if __name__ == "__main__":
         # 固定IP的网络配置
         if pcdn_type == "static_ip":
             logging.info("====================创建网络配置文件===================")
-            if static_ip_with_vlan(net_line_conf) is True:
+            if static_with_vlan is True:
                 init.create_static_ip_connection_file_and_routing_tables(net_line_conf)
                 # 写入路由
                 route.write_routing_rules(net_line_conf)

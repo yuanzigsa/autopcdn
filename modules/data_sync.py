@@ -11,6 +11,7 @@ from modules.init import pppoe_dial_up
 import modules.route_keeper as route
 
 
+
 # Time : 2023/12/08
 # Author : yuan_zi
 
@@ -243,7 +244,7 @@ def check_for_reconnection_and_update_to_crontrol_node():
 
 
 # 节点具体信息上报到控制节点
-def collect_node_spacific_info_update_to_control_node_or_customers(report_on, reportLocalPath, pcdn_basicinfo, pcdn_type):
+def collect_node_spacific_info_update_to_control_node_or_customers(report_on, reportLocalPath, pcdn_basicinfo, pcdn_type, static_with_vlan):
     def create_local_netline_info(pcdn_basicinfo):
         netline = pcdn_basicinfo['pppline']
         # 创建本地字典netline
@@ -304,58 +305,27 @@ def collect_node_spacific_info_update_to_control_node_or_customers(report_on, re
                 netline_local[pppoe_ifname]['retry_count'] = retry_counts[pppoe_ifname]
 
         if pcdn_type == "static_ip":
-            for line in netline_local.keys():
-                ifname = pcdn_basicinfo['pppline'][line]['eth']
-                node_status = get_node_status(ifname)
-                if netline_local[line]['disabled'] == 0:
-                    node_status = 0
-                netline_local[line]["status"] = node_status
-                netline_local[line]["ip"] = netline_local[line]["ip"]
-                netline_local[line]['retry_count'] = 0
+            if static_with_vlan is True:
+                # 需要完善代码
+                pass
+            else:
+                for line in netline_local.keys():
+                    ifname = pcdn_basicinfo['pppline'][line]['eth']
+                    node_status = get_node_status(ifname)
+                    if netline_local[line]['disabled'] == 0:
+                        node_status = 0
+                    netline_local[line]["status"] = node_status
+                    netline_local[line]["ip"] = netline_local[line]["ip"]
+                    netline_local[line]['retry_count'] = 0
 
 
-            for line in netline_local.keys():
-                ifname = pcdn_basicinfo['pppline'][line]['eth']
+                ifname = pcdn_basicinfo['pppline']["ip1"]['eth']
                 netline_local[ifname] ={}
-                netline_local[ifname] = netline_local[line]
-                print(netline_local)
-                netline_local[line].clear()
-                print(netline_local)
-
+                netline_local[ifname] = netline_local["ip1"]
+                del netline_local["ip1"]
         # 返回客户需要的信息
         return create_pcdn_basicinfo_for_customers(node_status, netline_local)
 
-
-    # 更新本地数据信息给客户
-    def update_pcdn_basicinfo_local_for_costumers(pcdn_basicinfo):
-        node_status = 0  # 默认节点状态不可用
-        # 读取本地文件
-        pcdn_basicinfo['timestamp'] = int(time.time())
-        netline_local = pcdn_basicinfo['pppline']
-
-        if pcdn_type == "pppoe":
-            # 读取拨号网卡的重拨次数
-            retry_counts = read_from_json_file("retry_counts.json")
-            for pppoe_ifname in netline_local.keys():
-                node_status = get_node_status(pppoe_ifname)
-                if netline_local[pppoe_ifname]['disabled'] == 0:
-                    node_status = 0
-                # 创建上报控制节点必要更新信息
-                netline_local[pppoe_ifname]['retry_counts'] = retry_counts[pppoe_ifname]
-                netline_local[pppoe_ifname]["status"] = node_status
-                netline_local[pppoe_ifname]["ip"] = get_local_pppoe_ip(f'{pppoe_ifname}')
-
-        if pcdn_type == "static_ip":
-            for line in netline_local.keys():
-                ifname = pcdn_basicinfo['pppline'][line]['eth']
-                node_status = get_node_status(ifname)
-                if netline_local[line]['disabled'] == 0:
-                    node_status = 0
-                netline_local[line]["status"] = node_status
-                netline_local[line]["ip"] = netline_local[line]["ip"]
-
-        # 返回客户需要的信息
-        return pcdn_basicinfo, node_status
 
     # 上报给客户
     def report_customer(data):
