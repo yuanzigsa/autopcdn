@@ -256,10 +256,10 @@ def collect_node_spacific_info_update_to_control_node_or_customers(report_on, re
                 netline_local[line]['ip'] = netline[line]['ip']
                 netline_local[line]['eth'] = netline[line]['eth']
             netline_local[line]['ssh_port'] = '22'
-            netline_local[line]['min_port'] = '0'
-            netline_local[line]['max_port'] = '0'
-            netline_local[line]['max_upbw_mbps'] = netline[line]['bandwidth']
-            netline_local[line]['max_downbw_mbps'] = netline[line]['bandwidth']
+            netline_local[line]['min_port'] = 0
+            netline_local[line]['max_port'] = 0
+            netline_local[line]['max_upbw_mbps'] = int(netline[line]['bandwidth'])
+            netline_local[line]['max_downbw_mbps'] = int(netline[line]['bandwidth'])
             netline_local[line]['disabled'] = netline[line]['disabled']
         return netline_local
 
@@ -270,21 +270,24 @@ def collect_node_spacific_info_update_to_control_node_or_customers(report_on, re
         pcdn_basicinfo_for_customers['sid'] = pcdn_basicinfo['name']
         pcdn_basicinfo_for_customers['timestamp'] = int(time.time())
         pcdn_basicinfo_for_customers['status'] = node_status
-        pcdn_basicinfo_for_customers['province'] = pcdn_basicinfo['province']
         pcdn_basicinfo_for_customers['city'] = pcdn_basicinfo["city"]
-        pcdn_basicinfo_for_customers['provider'] = pcdn_basicinfo['provider']
+        pcdn_basicinfo_for_customers['province'] = pcdn_basicinfo['province']
         pcdn_basicinfo_for_customers['isp'] = pcdn_basicinfo['isp']
         pcdn_basicinfo_for_customers['nat_type'] = pcdn_basicinfo['natType']
+        pcdn_basicinfo_for_customers['provider'] = pcdn_basicinfo['provider']
         pcdn_basicinfo_for_customers['upstreambandwidth'] = pcdn_basicinfo['upstreambandwidth']
         pcdn_basicinfo_for_customers['linecount'] = pcdn_basicinfo['linecount']
         pcdn_basicinfo_for_customers['cpu'] = pcdn_basicinfo['cpu']
         pcdn_basicinfo_for_customers['memory'] = pcdn_basicinfo['memory']
         pcdn_basicinfo_for_customers['pppline'] = {}
         pcdn_basicinfo_for_customers['pppline'] = netline_local
+        for line in pcdn_basicinfo_for_customers['pppline']:
+            del pcdn_basicinfo_for_customers['pppline'][line]['disabled']
+            del pcdn_basicinfo_for_customers['pppline'][line]['eth']
         return pcdn_basicinfo_for_customers, node_status
 
     # 按照要求完善推送给客户的信息
-    def update_pcdn_basicinfo_for_costumers():
+    def update_pcdn_basicinfo_for_costumers(pcdn_basicinfo):
         node_status = 0  # 默认节点状态不可用
         # 读取节点基础信息并创建本地数据记录文件
         netline_local = create_local_netline_info(pcdn_basicinfo)
@@ -296,9 +299,9 @@ def collect_node_spacific_info_update_to_control_node_or_customers(report_on, re
                 if netline_local[pppoe_ifname]['disabled'] == 0:
                     node_status = 0
                 # 创建上报控制节点必要更新信息
-                netline_local[pppoe_ifname]['retry_counts'] = retry_counts[pppoe_ifname]
                 netline_local[pppoe_ifname]["status"] = node_status
                 netline_local[pppoe_ifname]["ip"] = get_local_pppoe_ip(f'{pppoe_ifname}')
+                netline_local[pppoe_ifname]['retry_count'] = retry_counts[pppoe_ifname]
 
         if pcdn_type == "static_ip":
             for line in netline_local.keys():
@@ -308,6 +311,16 @@ def collect_node_spacific_info_update_to_control_node_or_customers(report_on, re
                     node_status = 0
                 netline_local[line]["status"] = node_status
                 netline_local[line]["ip"] = netline_local[line]["ip"]
+                netline_local[line]['retry_count'] = 0
+
+
+            for line in netline_local.keys():
+                ifname = pcdn_basicinfo['pppline'][line]['eth']
+                netline_local[ifname] ={}
+                netline_local[ifname] = netline_local[line]
+                print(netline_local)
+                netline_local[line].clear()
+                print(netline_local)
 
         # 返回客户需要的信息
         return create_pcdn_basicinfo_for_customers(node_status, netline_local)
@@ -359,18 +372,20 @@ def collect_node_spacific_info_update_to_control_node_or_customers(report_on, re
             logging.debug("本地有pcdn_basicinfo信息，读取本地文件修改动态信息进行上传")
             # 本地有文件直接读取修改动态的数值并上报
             pcdn_basicinfo_local = read_from_json_file("pcdn_basicinfo.json")
-            pcdn_basicinfo_for_customers, node_status = update_pcdn_basicinfo_local_for_costumers(pcdn_basicinfo_local)
+            # pcdn_basicinfo_for_customers, node_status = update_pcdn_basicinfo_local_for_costumers(pcdn_basicinfo_local)
+            pcdn_basicinfo_for_customers, node_status = update_pcdn_basicinfo_for_costumers(pcdn_basicinfo_local)
         else:
             # 本地没有文件则进行创建
             logging.debug("本地没有pcdn_basicinfo信息，即将进行创建")
-            pcdn_basicinfo_for_customers, node_status = update_pcdn_basicinfo_for_costumers()
+            pcdn_basicinfo_for_customers, node_status = update_pcdn_basicinfo_for_costumers(pcdn_basicinfo)
+            # 存储一份到本地
+            write_to_json_file(pcdn_basicinfo, "pcdn_basicinfo.json")
 
         # 上报给客户
         report_customer(pcdn_basicinfo_for_customers)
         # 告诉平台已经上报了客户
         update_local_operate_to_control_node(node_status, '已经将最新线路信息推送至客户', '线路信息上报至客户')
-        # 存储一份到本地
-        write_to_json_file(pcdn_basicinfo_for_customers, "pcdn_basicinfo.json")
+
 
 
 
