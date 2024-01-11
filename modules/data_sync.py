@@ -11,12 +11,10 @@ from modules.init import pppoe_dial_up
 import modules.route_keeper as route
 
 
-
 # Time : 2023/12/08
 # Author : yuan_zi
 
 # 网络和硬件监控信息在monitor模块进行上传
-
 
 # 获取配置信息
 try:
@@ -318,7 +316,6 @@ def collect_node_spacific_info_update_to_control_node_or_customers(report_on, re
                     netline_local[line]["ip"] = netline_local[line]["ip"]
                     netline_local[line]['retry_count'] = 0
 
-
                 ifname = pcdn_basicinfo['pppline']["ip1"]['eth']
                 netline_local[ifname] ={}
                 netline_local[ifname] = netline_local["ip1"]
@@ -342,7 +339,6 @@ def collect_node_spacific_info_update_to_control_node_or_customers(report_on, re
             logging.debug("本地有pcdn_basicinfo信息，读取本地文件修改动态信息进行上传")
             # 本地有文件直接读取修改动态的数值并上报
             pcdn_basicinfo_local = read_from_json_file("pcdn_basicinfo.json")
-            # pcdn_basicinfo_for_customers, node_status = update_pcdn_basicinfo_local_for_costumers(pcdn_basicinfo_local)
             pcdn_basicinfo_for_customers, node_status = update_pcdn_basicinfo_for_costumers(pcdn_basicinfo_local)
         else:
             # 本地没有文件则进行创建
