@@ -72,7 +72,7 @@ AutoPCDN的开发基于Python3及其众多依赖库，如pysnmp、requests、psu
 
 - 已在PCDN平台添加了节点机器的网络配置
 
-  ![image-20240226160933972](C:\Users\lijin\AppData\Roaming\Typora\typora-user-images\image-20240226160933972.png)
+![image](https://github.com/yuanzigsa/autopcdn/assets/30451380/897ef2ad-c6e3-4b99-b7c8-7d955bb096c9)
 
 ### 2.2 执行命令
 
@@ -82,7 +82,7 @@ AutoPCDN的开发基于Python3及其众多依赖库，如pysnmp、requests、psu
 
   这里执行模板中的代码实际上就是项目scripts下的init.sh文件中的代码，在后面“配置维护”内容会具体介绍
 
-  ![image-20240226162613500](C:\Users\lijin\AppData\Roaming\Typora\typora-user-images\image-20240226162613500.png)
+![Uploading image.png…]()
 
 
 
