@@ -12,10 +12,6 @@ from modules.logger import logging
 redial.info
 
 /opt/tools/redial/redial.info
-
-
-
-我想从这个/opt/tools/redial/redial.info文件中读取一些信息，信息格式为ppp+数字，如ppp1或者ppp100，请用Python来实现
 """
 
 
