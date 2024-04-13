@@ -90,161 +90,32 @@ AutoPCDN的开发基于Python3及其众多依赖库，如pysnmp、requests、psu
 
 ### 2.1 auto_pcdn主程序
 
-- **定义成功初始化部署的信息**：打印初始化部署完成的信息。
 - 定义一些辅助函数：包括设置运行标记、检查运行标记、检查专线类型、检查PCDN类型等。
-
-- **定义多个线程函数**：包括动态策略路由维护、断线重拨监控上报、节点信息更新上报、运维监控数据采集上报和节点配置更新检查等。
-- **定义启动线程的函数**：用于创建线程对象并启动线程。
-- **在主函数中进行初始化和配置网络**：根据从控制节点获取的信息，进行环境初始化和网络配置。
-- **启动线程**：根据PCDN类型，启动相应的线程。
+- 定义多个线程函数，包括动态策略路由维护、断线重拨监控上报、节点信息更新上报、运维监控数据采集上报和节点配置更新检查等。
+- 用于创建线程对象并启动线程。
+- 根据从控制节点获取的信息，进行环境初始化和网络配置。
+- 根据PCDN类型，启动相应的线程。
 
 ### 2.2 init模块
 
 这个模块主要用于PCDN环境部署初始化，包括配置DNS、关闭NetworkManager服务、安装必要的软件包、加载802.1q模块、配置SNMP服务、修改主机名、写入拨号账号密码、创建接口配置文件以及路由表等操作。
 
-- **install_pcdn_runtime_environment函数**：
-  - `check_configure_dns`函数：检查并配置DNS。
-  - `close_Net_workManager`函数：关闭NetworkManager服务。
-  - `install_package`函数：安装软件包。
-  - `load_8021q_module`函数：加载802.1q模块。
-  - `add_8021q_to_modules_file`函数：将802.1q模块添加到系统模块文件中。
-  - `configure_snmpd_conf_and_start_the_service`函数：配置SNMP服务并启动。
-- **modify_hostname函数**：修改主机名。
-- **write_secrets_to_pppoe_config_file函数**：将拨号账户密码写入到PPPoe配置文件。
-- **create_ifconfig_file函数**：创建接口配置文件，包括虚拟网卡、PPPoe连接等。
-- **create_routing_tables函数**：创建路由表。
-- **get_local_mac_address_list函数**：获取本机的所有MAC地址列表。
-- **derivation_mac_address函数**：根据给定的MAC地址生成新的MAC地址，保证其在本机的唯一性。
-- **create_pppoe_connection_file_and_routing_tables函数**：创建PPPoE连接文件和路由表。
-- **pppoe_dial_up函数**：进行PPPoE拨号连接。
-- **create_static_ip_connection_file_and_routing_tables函数**：创建专线IP网络配置文件和路由表。
-
 ### 2.3 data_sync模块
 
 这个模块主要功能包括从控制节点获取配置信息、监控拨号连接状态、检测网络连通性、以及将监控信息上报至控制节点或客户端。
-
-- **导入必要的模块**：代码一开始导入了一系列需要使用的模块，如`re`、`os`、`json`、`time`、`requests`等，这些模块用于处理文件操作、JSON数据、时间、HTTP请求等。
-- **读取配置信息**：通过打开`config.json`文件读取配置信息，其中包括了一些API的URL和请求头信息等。
-- **定义一些工具函数**：
-  - `write_to_json_file(value, file)`：将数据写入JSON文件。
-  - `read_from_json_file(file)`：从JSON文件中读取数据。
-  - `get_local_pppoe_ip(pppoe_ifname)`：通过执行命令获取本地PPPoE连接的IP地址。
-  - `update_local_operate_to_control_node(node_status, info, operate)`：将本地操作信息更新到控制节点。
-  - `update_pppline_monitor_to_control_node(pppline_monitor_info)`：将PPPoE线路监控信息更新到控制节点。
-  - `update_monitor_info_to_control_node(monitor_info)`：将网络和硬件监控信息更新到控制节点。
-  - `update_dial_connect_to_control_node(type, node_name, pppoe_ifname, pppoe_user)`：将拨号连接状态更新到控制节点。
-  - `get_node_status(ifname)`：检测指定接口的网络连通性。
-- **断线重连监测上报**：
-  - `set_update_discon_flag(pppoe_ifname)`：设置断线标记。
-  - `check_update_discon_flag(pppoe_ifname)`：检查断线标记是否存在。
-  - `check_pppoe_connect_process_exists(pppoe_ifname)`：检查PPPoe连接进程是否存在。
-  - `check_for_reconnection_and_update_to_crontrol_node()`：检查断线重连状态并更新到控制节点。
-- **节点具体信息上报到控制节点或客户端**：
-  - `collect_node_spacific_info_update_to_control_node_or_customers(report_on, reportLocalPath, pcdn_basicinfo, pcdn_type, static_with_vlan)`：收集节点特定信息并上报到控制节点或客户端。
 
 ### 2.4 monitor模块
 
 
 这个模块负责网络和硬件监控，主要用于采集系统的各种信息并将其推送到控制平台。
 
-- `get_system_info()`:
-  - 获取系统信息，包括操作系统类型和版本。
-- `get_uptime()`:
-  - 获取系统运行时间，即系统启动后经过的时间。
-- `get_cpu_info()`:
-  - 获取 CPU 的型号和核心数。
-- `get_cpu_usage()`:
-  - 获取 CPU 的使用率。
-- `get_memory_info()`:
-  - 获取内存的总量、已使用量和使用率。
-- `get_total_memory_gb()`:
-  - 获取总内存量，并转换为 GB 单位。
-- `get_disk_io()`:
-  - 获取磁盘的读写速率。
-- `get_disk_space()`:
-  - 获取磁盘空间信息，包括总空间、已使用空间和使用率。
-- `get_local_pppoe_ifname(pppoe_ifname)`:
-  - 获取本地的 PPPoE 接口名。
-- `get_pppline_bandwidth(pcdn_type)`:
-  - 获取拨号接口的带宽速率，利用 SNMP 协议采集数据。
-
-- `get_pingloss_and_rtt()`:
-  - 获取 ping 丢包率和延迟信息，通过执行 ping 命令获取。
-
-- `network_and_hardware_monitor(pcdn_type)`:
-  - 网络和硬件监控的主函数，调用上述函数获取各种信息，然后写入 JSON 文件并推送到控制平台。
-
 ### 2.5 route_keeper模块
 
-这是一个路由维护模块，用于管理linux系统中的路由规则，包括删除无效路由、添加新拨号网卡获取的IP路由等功能。以下是详细介绍：
-
-- **`get_current_route_rule_ip()`**:
-   - 通过调用`get_ip_rules()`函数获取当前系统中的路由规则信息。
-   - 使用正则表达式提取出路由规则中的IP地址列表。
-
-- **`get_ip_address(ifname)`**:
-   - 通过套接字和系统调用获取指定接口的IP地址。
-
-- **`del_rules(ip, table)`** 和 **`add_rules(ifname, table, ip)`**:
-   - 分别用于删除和添加路由规则。使用`subprocess`模块执行系统命令，实现对路由规则的管理。
-
-- **`get_expired_ip_router_rules(keyword)`**:
-   - 通过调用`subprocess`模块执行系统命令`ip rule list`获取当前系统中的路由规则信息。
-   - 使用正则表达式提取出包含指定关键字的路由规则，返回相关内容。
-
-- **`get_pppoe_ip_address_list(pppoe_info)`**:
-   - 获取PPPoE接口的IP地址列表，并将获取到的IP地址与接口名关联起来。
-
-- **`find_ifnmae_by_ip(pppoe_info, target_ip)`** 和 **`find_ifnmae_by_table(pppoe_info, target_ip)`**:
-   - 分别根据IP地址和表名在PPPoE接口信息中查找对应的接口名。
-
-- **`from_route_rules_get_old_ip_table()`**:
-   - 通过调用`get_current_route_rule_ip()`获取当前路由规则中的IP地址列表。
-   - 遍历路由规则列表，使用正则表达式提取出路由规则中的表名，并构建表名与IP地址的字典关系。
-
-- **`del_duplicate_ip_routing_rules()`**:
-   - 获取当前系统中的路由规则列表。
-   - 使用正则表达式提取出路由规则中的信息，并统计重复的路由规则。
-   - 删除重复的路由规则。
-
-- **`update_routing_table(pppline)`**:
-   - 更新路由表。
-   - 首先创建当前在线的网卡信息，并获取当前路由表和PPPoE接口的IP地址列表。
-   - 删除重复的路由规则，并对比路由表中的IP地址与PPPoE接口的IP地址，确定需要删除的无效路由。
-   - 添加新拨号获取的IP路由。
-
-- **`write_routing_rules(net_line_conf)`**:
-   - 将固定IP的路由添加到路由表中。
+这是一个路由维护模块，用于管理linux系统中的路由规则，包括删除无效路由、添加新拨号网卡获取的IP路由等功能。
 
 ### 2.6 update_checker模块
 
-这个模块实现了检查pcdn控制平台是否存在拨号信息的更新，并根据更新情况执行相应的操作。下面是详细介绍：
-
-- **`check_for_updates_and_config()`函数**:
-   - 这是主要的函数，用于检查拨号信息是否有更新，并进行相应的配置。
-
-- **`check_updates(pppline_local, pppline_control_node)`函数**:
-   - 检查本地存储的拨号信息和控制平台的拨号信息是否一致。
-   - 如果不一致，返回更新的拨号信息，包括新增的、删除的和变更的拨号信息。
-
-- **获取最新拨号信息**:
-   - 调用`sync.get_pppoe_basicinfo_from_control_node()`从控制平台获取最新的拨号信息。
-   - 调用`sync.read_from_json_file('pppline.json')`读取上次拨号成功的数据。
-
-- **获取差异数据**:
-   - 调用`check_updates()`函数获取新增的、删除的和变更的拨号信息。
-
-- **处理新增的拨号信息**:
-   - 如果有新增的拨号信息，则创建新增项的拨号前配置，并将其写入本地。
-
-- **处理删除的拨号信息**:
-   - 如果有删除的拨号信息，则记录日志。
-
-- **处理变更的拨号信息**:
-   - 如果有变更的拨号信息，则创建变更拨号账号的拨号前配置，并将其写入本地。
-
-- **更新本地拨号信息**:
-   - 将最新的拨号信息写入本地，以便后续从云控制平台拉取信息与其对比，判断是否有更新。
+这个模块实现了检查pcdn控制平台是否存在拨号信息的更新，并根据更新情况执行相应的操作。
 
 ### 2.7 redial模块
 
@@ -289,12 +160,3 @@ AutoPCDN的开发基于Python3及其众多依赖库，如pysnmp、requests、psu
 - **部署AutoPCDN程序**
 
   创建/opt/auto_pcdn/目录，下载、解压auto_pcdn.tar.gz程序包，安装yum-fastestmirror插件，安装Python3环境及外置库，创建系统服务，并监视日志。
-
-
-
-
-
-
-
-
-
